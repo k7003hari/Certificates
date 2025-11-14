@@ -1,0 +1,148 @@
+function setSumInsuredHDC(str,obj){
+	var ctId = document.getElementById("_ctId").value; 
+if (ctId =="900009486"){
+	var  siOfCover_hdc = oPage.getControl("HDC_Benefit_Field_Details").getFormEditors()["PolicyCtBO.PolicyCtBO.PolicyCtBVO.Sum_Insured_CKP"].getValue();		
+		var insval=0;
+	
+		if(siOfCover_hdc==1){
+			insval=500;
+		}
+		else if(siOfCover_hdc==2){
+			insval=1000;
+		}
+		else if(siOfCover_hdc==3){
+			insval=1500;
+		}
+		else if(siOfCover_hdc==4){
+			insval=2000;
+		}
+		else if(siOfCover_hdc==5){
+			insval=2500;
+		}
+		else if(siOfCover_hdc==6){
+			insval=3000; 
+		}
+		else if(siOfCover_hdc==7){
+			insval=3500; 
+		}
+		else if(siOfCover_hdc==8){
+			insval=4000; 
+		}
+		else if(siOfCover_hdc==9){
+			insval=4500; 
+		}
+		else if(siOfCover_hdc==10){
+			insval=5000; 
+		}
+		
+var hdcMMinsi = "<%=hdcMinSI%>";
+var hdcMMinsi1=parseInt(hdcMMinsi);	
+var hdcMMaxsi = "<%=hdcMaxSI%>";
+var hdcMMaxsi1=parseInt(hdcMMaxsi);	
+var baseCoverSi1=parseInt(insval);
+if(baseCoverSi1 < hdcMMinsi1 || baseCoverSi1 > hdcMMaxsi1){
+	alert("SI should be within the range (Minimum "+hdcMMinsi1+" Maximum "+hdcMMaxsi1+") as defined in the Master Policy");
+	oPage.getControl("HDC_Benefit_Field_Details").getFormEditors()["PolicyCtBO.PolicyCtBO.PolicyCtBVO.Sum_Insured_CKP"].setValue('');	
+	return false;
+}
+
+else{
+	var tabObj2 = oPage.getControl("HDC_Benefit_Datatable_Details");   
+	var row = tabObj2.getTableRows();	
+	var hdcdura = "<%=hdcdur%>";
+	if(baseCoverSi1 !=null && baseCoverSi1 !='')
+	{
+		for (var i = 0; i < row.length; i++)
+			{
+				var nam = row[i].getValue("PolicyCtAcceBVO.InterestName");
+				
+				if(nam == "Sickness Hospital daily cash")
+				{
+				var totalhdcsi=baseCoverSi1*hdcdura;
+				row[i].setValue('PolicyCtAcceBVO.Sum_Insured_per_day_GSA',baseCoverSi1);
+				row[i].setValue('PolicyCtAcceBVO.No_of_days_GSA',hdcdura);
+				row[i].setValue('PolicyCtAcceBVO.InterestSi',totalhdcsi);
+				row[i].setValue('PolicyCtAcceBVO.Balance_No_of_Days',hdcdura);
+				row[i].setValue('PolicyCtAcceBVO.Balance_Sum_Insured_GSA',totalhdcsi);
+				}
+				if(nam == "Accident Hospital daily cash")
+				{
+				var accSI=baseCoverSi1*2;
+				var totalaccsi=accSI*hdcdura;
+				row[i].setValue('PolicyCtAcceBVO.Sum_Insured_per_day_GSA',accSI);
+				row[i].setValue('PolicyCtAcceBVO.No_of_days_GSA',hdcdura);
+				row[i].setValue('PolicyCtAcceBVO.InterestSi',totalaccsi);
+				row[i].setValue('PolicyCtAcceBVO.Balance_No_of_Days',hdcdura);
+				row[i].setValue('PolicyCtAcceBVO.Balance_Sum_Insured_GSA',totalaccsi);
+				}
+				if(nam == "ICU Cash Benefit")
+				{
+				var icuSI=baseCoverSi1*3;
+				var totalicusi=icuSI*hdcdura;
+				row[i].setValue('PolicyCtAcceBVO.Sum_Insured_per_day_GSA',icuSI);
+				row[i].setValue('PolicyCtAcceBVO.No_of_days_GSA',hdcdura);
+				row[i].setValue('PolicyCtAcceBVO.InterestSi',totalicusi);
+				row[i].setValue('PolicyCtAcceBVO.Balance_No_of_Days',hdcdura);
+				row[i].setValue('PolicyCtAcceBVO.Balance_Sum_Insured_GSA',totalicusi);
+				}
+				if(nam == "Convalescence Benefit")
+				{
+				var convaSI=baseCoverSi1*5;                   
+				row[i].setValue('PolicyCtAcceBVO.Sum_Insured_per_day_GSA',0);
+				row[i].setValue('PolicyCtAcceBVO.No_of_days_GSA',0);
+				row[i].setValue('PolicyCtAcceBVO.InterestSi',convaSI);
+				row[i].setValue('PolicyCtAcceBVO.Balance_No_of_Days',0);
+				row[i].setValue('PolicyCtAcceBVO.Balance_Sum_Insured_GSA',0);
+				}
+				if(nam == "Compassionate Benefit")
+				{
+				var compSI=baseCoverSi1*10;
+				row[i].setValue('PolicyCtAcceBVO.Sum_Insured_per_day_GSA',0);
+				row[i].setValue('PolicyCtAcceBVO.No_of_days_GSA',0);
+				row[i].setValue('PolicyCtAcceBVO.InterestSi',compSI);
+				row[i].setValue('PolicyCtAcceBVO.Balance_No_of_Days',0);
+				row[i].setValue('PolicyCtAcceBVO.Balance_Sum_Insured_GSA',0);
+				}
+				if(nam == "Day Care Treatment Benefit")
+				{
+				var dayTRSI=baseCoverSi1*5;
+				if(dayTRSI>10000){
+					dayTRSI=10000;
+				}
+				row[i].setValue('PolicyCtAcceBVO.Sum_Insured_per_day_GSA',0);
+				row[i].setValue('PolicyCtAcceBVO.No_of_days_GSA',0);
+				row[i].setValue('PolicyCtAcceBVO.InterestSi',dayTRSI);
+				row[i].setValue('PolicyCtAcceBVO.Balance_No_of_Days',0);
+				row[i].setValue('PolicyCtAcceBVO.Balance_Sum_Insured_GSA',0);
+				}
+			}
+		}
+	}
+	
+	 setSumInsuredHDCCT();
+	}
+	
+}
+
+
+
+
+
+function setSumInsuredHDCCT(str,obj){
+	var ctId = document.getElementById("_ctId").value; 
+	if (ctId =="900009486"){
+		var tabObj2 = oPage.getControl("HDC_Benefit_Datatable_Details");   
+		var row = tabObj2.getTableRows();
+var si=0;
+var SIInt=0;		
+		for (var i = 0; i < row.length; i++)
+			{
+				 si = row[i].getValue("PolicyCtAcceBVO.InterestSi");				 
+				 SIInt = parseInt(si)+parseInt(SIInt);
+				}
+			oPage.getControl("HDC_Cover_Details").getFormEditors()["PolicyCtBO.PolicyCtBO.PolicyCtBVO.SiOfCoverType"].setVisible(true);				
+			oPage.getControl("HDC_Cover_Details").getFormEditors()["PolicyCtBO.PolicyCtBO.PolicyCtBVO.SiOfCoverType"].setValue(SIInt);
+			oPage.getControl("HDC_Cover_Details").getFormEditors()["PolicyCtBO.PolicyCtBO.PolicyCtBVO.SiOfCoverType"].setVisible(false);	
+			
+	}
+}
