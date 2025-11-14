@@ -1,0 +1,1927 @@
+package com.ebao.sbi.gs.extranet.json.prdt.impl;
+
+import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import com.ebao.gs.pol.core.nb.bs.ws.form.PolicyServiceContext;
+import com.ebao.gs.pol.core.nb.bs.ws.form.PolicyServiceInput;
+import com.ebao.gs.pol.core.pub.soabo.GenPolicyFeeSOABO;
+import com.ebao.gs.pol.core.pub.soabo.GenPolicyInfoSOABO;
+import com.ebao.gs.pol.core.pub.soabo.InsuredSOABO;
+import com.ebao.gs.pol.core.pub.soabo.PersonInsuredSOABO;
+import com.ebao.gs.pol.core.pub.soabo.PolicyClauseSOABO;
+import com.ebao.gs.pol.core.pub.soabo.PolicyCtAcceSOABO;
+import com.ebao.gs.pol.core.pub.soabo.PolicyCtSOABO;
+import com.ebao.gs.pol.core.pub.soabo.PolicyGenCustSOABO;
+import com.ebao.gs.pol.core.pub.soabo.PolicyNcdProtectionSOABO;
+import com.ebao.gs.pol.core.pub.soabo.PolicyPayInfoSOABO;
+import com.ebao.gs.pol.core.pub.soabo.PolicyPaymentSOABO;
+import com.ebao.gs.pol.core.pub.soabo.PolicySOABO;
+import com.ebao.gs.pol.core.pub.soabo.QuoteInfoSOABO;
+import com.ebao.gs.pol.core.pub.soabo.vo.DynamicAttributeVO;
+import com.ebao.gs.pol.core.pub.soabo.vo.DynamicObjectVO;
+import com.ebao.gs.pub.bean.BeanHelper;
+import com.ebao.pub.util.DBean;
+import com.ebao.pub.util.Log;
+import com.ebao.pub.util.StringUtils;
+import com.ebao.sbi.gs.extranet.json.inputBo.Benefits;
+import com.ebao.sbi.gs.extranet.json.inputBo.Client;
+import com.ebao.sbi.gs.extranet.json.inputBo.ConcurrentPolicyDetails;
+import com.ebao.sbi.gs.extranet.json.inputBo.Context;
+import com.ebao.sbi.gs.extranet.json.inputBo.CoverDetails;
+import com.ebao.sbi.gs.extranet.json.inputBo.InsuredDetails;
+import com.ebao.sbi.gs.extranet.json.inputBo.ParentJsonBO;
+import com.ebao.sbi.gs.extranet.json.inputBo.PreviousPolicyDetails;
+import com.ebao.sbi.gs.extranet.json.inputBo.User;
+import com.ebao.sbi.gs.extranet.json.outputBo.CreateQuoteResponse;
+import com.ebao.sbi.gs.extranet.json.outputBo.ErrorTag;
+import com.ebao.sbi.gs.extranet.json.outputBo.OutputBenefits;
+import com.ebao.sbi.gs.extranet.json.outputBo.OutputCoverDetails;
+import com.ebao.sbi.gs.extranet.json.outputBo.OutputInsuredDetails;
+import com.ebao.sbi.gs.extranet.json.outputBo.OutputPayLoad;
+import com.ebao.sbi.gs.extranet.json.outputBo.OutputPolicyTerms;
+import com.ebao.sbi.gs.extranet.json.outputBo.OutputResponse;
+import com.ebao.sbi.gs.extranet.json.outputBo.ParentOutputJsonBO;
+import com.ebao.sbi.gs.extranet.json.outputBo.PolicyFeeDetails;
+import com.ebao.sbi.gs.extranet.json.outputBo.QuoteResponse;
+import com.ebao.sbi.gs.extranet.json.outputBo.ValidationErrors;
+import com.ebao.sbi.gs.pol.core.nb.bs.ws.form.PolicyServiceEbaoOutput;
+
+public class GSA001PrdtImpl extends PrdtImpl {
+	long insuredid = 0;
+	long policyid = 0;
+	long ppid1 = 0;
+	String ppid = null;
+	String PolicyId = null;
+	String InsuredId = null;
+	Long policyCtId = null;
+	String QuoteNo = null;
+	String userName = null;
+	Boolean ncbFlag = false;
+
+	public PolicyServiceInput servicescall(ParentJsonBO gsabo) throws Exception {
+
+		PolicyServiceInput input = new PolicyServiceInput();
+		ASAN001PrdtValidation validation = new ASAN001PrdtValidation();
+		try {
+			String PolicyId = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getPolicyID();
+			QuoteNo = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getQuoteNo();
+			String Product = gsabo.getPayload().getCreatequoterequest().getProduct();
+			String effectiveDate = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getEffectiveDate();
+			String expiryDate = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getExpiryDate();
+			
+			ppid = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getPpId();
+			String DOB = gsabo.getPayload().getCreatequoterequest().getProposerDetails().getDob();
+			InsuredId = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getInsuredId();
+			System.out.println("GSAPrdtImpl : : InsuredId====>" + InsuredId);
+
+			String locationAddressDlt = gsabo.getPayload().getCreatequoterequest().getQuoteDetails()
+					.getLocationAddressDlt();
+			System.out.println("GSA Prdt impl:PolicyId:" + PolicyId + "QuoteNo:" + QuoteNo + "Product:" + Product
+					+ "effectiveDate:" + effectiveDate + "expiryDate:" + expiryDate + 
+				"ppId" + ppid + "locationAddressDlt:" + locationAddressDlt + "insuredId:" + InsuredId);
+
+			GenPolicyInfoSOABO infobo = new GenPolicyInfoSOABO();
+			PolicyServiceContext context = new PolicyServiceContext();
+			PolicySOABO policySoabo = new PolicySOABO();
+			context.setAction("calculatePremium");
+			context.setPhaseType("DATA_ENTRY");
+			context.setFromType(1);
+
+			if (PolicyId != null && !PolicyId.equalsIgnoreCase("")) {
+				context.setQuoteNo(QuoteNo);
+			}
+
+			String userId = null;
+			PrdtValidation prdtValidation = new PrdtValidation();
+			String userName = gsabo.getContext().getUser().getUsername();
+			System.out.println("userName" + userName);
+			try {
+				userId = prdtValidation.getUserID(userName);
+				System.out.println("userId====>" + userId);
+			} catch (Exception e) {
+				System.out.println("GSAPrdtImpl :: userid not found for userName" + userName);
+			}
+			context.setUserID(userId);
+			context.setUserName(userName);
+
+			System.out.println("context.setUserID:" + userId + "context.setUserName:" + userName);
+
+			// TPA Details
+			DynamicObjectVO dynamicTPASearchVO = new DynamicObjectVO();
+			DynamicAttributeVO dynamicAttrTPASearch = new DynamicAttributeVO();
+			Map<String, String> TPAFieldVals = new HashMap<String, String>();
+			
+			String allocatedTPAName = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().gettPASearch().getAllocatedTPAName();
+			String tPACode = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().gettPASearch().gettPACode();
+			String tPAName = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().gettPASearch().gettPAName();
+			String tollFreeNumber = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().gettPASearch()
+					.getTollFreeNumber();
+			String contactPerson = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().gettPASearch()
+					.getPerson();
+			String tPAAddress = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().gettPASearch()
+					.getAddressOfTheTPA();
+			String contactNumber = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().gettPASearch()
+					.getContactNumber();
+			String emailIDContactPerson = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().gettPASearch()
+			.getEmailIDContactPerson();
+			String overRideTPAName = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().gettPASearch()
+			.getOverRideTPAName();
+			
+			TPAFieldVals.put("TPA_Code_ASAN_PO", tPACode);
+			TPAFieldVals.put("TPA_Name_ASAN_PO", tPAName);
+			TPAFieldVals.put("Toll_Free_Number_ASAN_PO", tollFreeNumber);
+			TPAFieldVals.put("Contact_Person_ASAN_PO", contactPerson);
+			TPAFieldVals.put("Address_Of_The_TPA_ASAN_PO", tPAAddress);
+			TPAFieldVals.put("Contact_Number_ASAN_PO", contactNumber);
+
+			TPAFieldVals.put("MAX_INSURED_ID", "");
+			TPAFieldVals.put("Allocated_TPA_Name_ASAN_PO", allocatedTPAName);
+			TPAFieldVals.put("Toll_Free_Number_Text", "");
+			TPAFieldVals.put("E_Mail_ID_ASAN_PO", emailIDContactPerson);
+			TPAFieldVals.put("Contact_Number_Text", "");
+			TPAFieldVals.put("POLICYID", "");
+			TPAFieldVals.put("DYN_DATA_ID", "");
+
+			dynamicAttrTPASearch.setValueMap(TPAFieldVals);
+			dynamicTPASearchVO.setBizTableName("TPA_Search_ASAN");
+			dynamicTPASearchVO.getDynamicAttributeVOList().add(dynamicAttrTPASearch);
+
+			policySoabo.getDynamicObjectList().add(dynamicTPASearchVO);
+			// TPA End
+
+			//GSA_Master_Policy_Details Starts
+			DynamicObjectVO dynamicGSA_Master_Policy_DetailsVO = new DynamicObjectVO();
+			DynamicAttributeVO dynamicAttrGSA_Master_Policy_Details = new DynamicAttributeVO();
+			Map<String, String> GSA_Master_Policy_DetailsFieldValsMap = new HashMap<String, String>();
+
+			String nameOfMasterPolicyHolder = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getNameOfMasterPolicyHolder();
+			String isHospitalizationOpted = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getIsHospitalizationOpted();
+			String isPAOpted = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getIsPAOpted();
+			String isCIOpted = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getIsCIOpted();
+			String isHDCOpted = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getIsHDCOpted();
+			String hospitalizationMinimumSILimit = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getHospitalizationMinimumSILimit();
+			String hospitalizationMaximumSILimit = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getHospitalizationMaximumSILimit();
+			String isCopaymentOpted = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getIsCopaymentOpted();
+			String isMaternityOpted = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getIsMaternityOpted();
+			String isNewBornOpted = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getIsNewBornOpted();
+			String isOutpatientExpenseOpted = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getIsOutpatientExpenseOpted();
+			String isAggregateDeductibleOpted = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getIsAggregateDeductibleOpted();
+			String paMinimumSILimit = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getPaMinimumSILimit();
+			String paMaximumSILimit = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getPaMaximumSILimit();
+			String ciMinimumSILimit = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getCiMinimumSILimit();
+			String ciMaximumSILimit = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getCiMaximumSILimit();
+			String hdcMinimumSILimit = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getHdcMinimumSILimit();
+			String hdcMaximumSILimit = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getHdcMaximumSILimit();
+			String hdcDuration = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getHdcDuration();
+			String planCode = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getPlanCode();
+			String masterPolicyNumber = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getMasterPolicyNumber();
+			String masterPolicyStartDate = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getMasterPolicyStartDate();
+			String masterPolicyEndDate = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getMasterPolicyEndDate();
+			String previousMasterPolicyNo = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getPreviousMasterPolicyNo();
+			String ratingfactor1 = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getRatingfactor1();
+			String ratingfactor2 = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getRatingfactor2();
+			String ratingfactor3 = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getRatingfactor3();
+			String ratingfactor4 = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getRatingfactor4();
+			String ratingfactor5 = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getMasterPolicyDetails().getRatingfactor5();
+			
+			
+			GSA_Master_Policy_DetailsFieldValsMap.put("Rating_factor_1",ratingfactor1);
+			GSA_Master_Policy_DetailsFieldValsMap.put("PA_maximum_SI_limit",paMaximumSILimit);
+			GSA_Master_Policy_DetailsFieldValsMap.put("MasterPolicyNumberGSA",masterPolicyNumber);
+			GSA_Master_Policy_DetailsFieldValsMap.put("IsNonnetworkcopayopted","");
+			GSA_Master_Policy_DetailsFieldValsMap.put("Rating_factor_5",ratingfactor5);
+			GSA_Master_Policy_DetailsFieldValsMap.put("Rating_factor_4",ratingfactor4);
+			GSA_Master_Policy_DetailsFieldValsMap.put("HDC_minimum_SI_limit",hdcMinimumSILimit);
+			GSA_Master_Policy_DetailsFieldValsMap.put("IsMaternityopted",isMaternityOpted);
+			GSA_Master_Policy_DetailsFieldValsMap.put("Rating_factor_3",ratingfactor3);
+			GSA_Master_Policy_DetailsFieldValsMap.put("Rating_factor_2",ratingfactor2);
+			GSA_Master_Policy_DetailsFieldValsMap.put("Is_Aggregate_deductible_opted","");
+			GSA_Master_Policy_DetailsFieldValsMap.put("Hospitalization_minimum_SI_Limit",hospitalizationMinimumSILimit);
+			GSA_Master_Policy_DetailsFieldValsMap.put("Is_Outpatient_expense_opted","");
+			GSA_Master_Policy_DetailsFieldValsMap.put("IsCIOpted","");
+			GSA_Master_Policy_DetailsFieldValsMap.put("DYN_DATA_ID","");
+			GSA_Master_Policy_DetailsFieldValsMap.put("Is_Maternity_opted","");
+			GSA_Master_Policy_DetailsFieldValsMap.put("Previous_Master_Policy_No","");
+			GSA_Master_Policy_DetailsFieldValsMap.put("PlanCodeGSA",planCode);
+			GSA_Master_Policy_DetailsFieldValsMap.put("IsHDCOpted","");
+			GSA_Master_Policy_DetailsFieldValsMap.put("Master_Policy_End_Date_1",Long.toString(validation.convertDateToMilisecond(masterPolicyEndDate)));
+			GSA_Master_Policy_DetailsFieldValsMap.put("Is_New_born_opted","");
+			GSA_Master_Policy_DetailsFieldValsMap.put("IsHDCOpted1",isHDCOpted);
+			GSA_Master_Policy_DetailsFieldValsMap.put("Hospitalization_maximum_SI_Limit",hospitalizationMaximumSILimit);
+			GSA_Master_Policy_DetailsFieldValsMap.put("Name_of_master_Policy_Holder","");
+			GSA_Master_Policy_DetailsFieldValsMap.put("IsCIOpted1",isCIOpted);
+			GSA_Master_Policy_DetailsFieldValsMap.put("Iscopaymentopted",isCopaymentOpted);
+			GSA_Master_Policy_DetailsFieldValsMap.put("IsNewbornopted",isNewBornOpted);
+			GSA_Master_Policy_DetailsFieldValsMap.put("Name_of_Master_Policy_Holder1",nameOfMasterPolicyHolder);
+			GSA_Master_Policy_DetailsFieldValsMap.put("IsAggregatedeductibleopted",isAggregateDeductibleOpted);
+			GSA_Master_Policy_DetailsFieldValsMap.put("Plan_code","");
+			GSA_Master_Policy_DetailsFieldValsMap.put("Master_Policy_Number","");
+			GSA_Master_Policy_DetailsFieldValsMap.put("CI_minimum_SI_limit",ciMinimumSILimit);
+			GSA_Master_Policy_DetailsFieldValsMap.put("Master_Policy_Start_Date",Long.toString(validation.convertDateToMilisecond(masterPolicyStartDate)));
+			GSA_Master_Policy_DetailsFieldValsMap.put("IsHospitalizationOpted","");
+			GSA_Master_Policy_DetailsFieldValsMap.put("PA_minimum_SI_limit",paMinimumSILimit);
+			GSA_Master_Policy_DetailsFieldValsMap.put("IsHospitalizationOpted1",isHospitalizationOpted);
+			GSA_Master_Policy_DetailsFieldValsMap.put("HDC_maximum_SI_limit",hdcMaximumSILimit);
+			GSA_Master_Policy_DetailsFieldValsMap.put("IsPAOpted1",isPAOpted);
+			GSA_Master_Policy_DetailsFieldValsMap.put("IsOutpatientexpenseopted",isOutpatientExpenseOpted);
+			GSA_Master_Policy_DetailsFieldValsMap.put("IsPAOpted","");
+			GSA_Master_Policy_DetailsFieldValsMap.put("HDC_Duration","");
+			GSA_Master_Policy_DetailsFieldValsMap.put("POLICYID","");
+			GSA_Master_Policy_DetailsFieldValsMap.put("Master_Policy_End_Date","");
+			GSA_Master_Policy_DetailsFieldValsMap.put("HDCDuration",hdcDuration);
+			GSA_Master_Policy_DetailsFieldValsMap.put("previousMasterPolicyNo",previousMasterPolicyNo);
+			GSA_Master_Policy_DetailsFieldValsMap.put("Is_co_paymentopted","");
+			GSA_Master_Policy_DetailsFieldValsMap.put("Is_Non_network_co_pay_opted","");
+			GSA_Master_Policy_DetailsFieldValsMap.put("CI_maximum_SI_limit",ciMaximumSILimit);
+			
+
+			dynamicAttrGSA_Master_Policy_Details.setValueMap(GSA_Master_Policy_DetailsFieldValsMap);
+			dynamicGSA_Master_Policy_DetailsVO.setBizTableName("GSA_Master_Policy_Details");
+			dynamicGSA_Master_Policy_DetailsVO.getDynamicAttributeVOList().add(dynamicAttrGSA_Master_Policy_Details);
+
+			policySoabo.getDynamicObjectList().add(dynamicGSA_Master_Policy_DetailsVO);
+			//GSA_Master_Policy_Details end
+			
+						// setting the Product information
+			long Agreementid = Long
+					.parseLong(gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getAgreementCode());
+
+			policySoabo.setAgreementId(Agreementid);
+			policySoabo.setSourceSystemName("migration");
+			policySoabo.setBizPrdtCode("GSA001");
+			policySoabo.setCreatorOrganization("00001");
+			policySoabo.setEffectDate(validation.Dateformat(effectiveDate));
+			policySoabo.setExpiryDate(validation.Dateformat(expiryDate));
+			policySoabo.setMotor(false);
+			long OperatorId = Long.valueOf(userId).longValue();
+			policySoabo.setOperatorId(OperatorId);
+			policySoabo.setCreator(OperatorId);
+			
+			//CR13342
+			String branchCode=null;
+			System.out.println("GSA Prdt impl : agreementCode" + policySoabo.getAgreementId());
+			if(null != policySoabo.getAgreementId()  && !policySoabo.getAgreementId().equals("") ) {
+				branchCode=getBranchCode(policySoabo.getAgreementId());
+			}
+			else {
+				branchCode="00001";
+			}
+			System.out.println("GSA Prdt impl : branchCode " + branchCode);
+			
+			policySoabo.setPerformanceBranchCode(branchCode);
+			
+			policySoabo.setPolicyCategory(1);
+			if (PolicyId != null && !PolicyId.equalsIgnoreCase("")) {
+				policyid = Integer.valueOf(PolicyId);
+				policySoabo.setPolicyId(policyid);
+				policySoabo.setQuotationNumber(QuoteNo);
+			}
+			policySoabo.setProductAllowCoinsuranceorNot(false);
+			policySoabo.setProductCanbeReneworNot(true);
+			policySoabo.setPremiumCurrency(148);
+			long ProductCategory = 1;
+			policySoabo.setProductCategory(ProductCategory);
+			long ProductId = 900002181L;
+			policySoabo.setProductId(ProductId);
+			policySoabo.setProductName("Group Sampoorna Arogya");
+			policySoabo.setSumInsuredCurrencyId(148);
+			policySoabo.setSiCurrencyCode("INR");
+			policySoabo.setSiCurrencyName("INR");
+
+			String actionFromJSON = gsabo.getContext().getClient().getAction();
+
+			if (actionFromJSON.equalsIgnoreCase("QuoteCreation")) {
+				policySoabo.setProposalStatus(10);
+			} else {
+				policySoabo.setProposalStatus(60);
+			}
+			// End
+
+			// start Policy Info section
+			Map<String, String> genfieldvaluemap = new HashMap<String, String>();
+			Map<String, String> genfieldvaluemap1 = new HashMap<String, String>();
+
+			String planName = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getPolicyInfo()
+					.getPlanName();
+			String iRDAProductCode = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getPolicyInfo()
+					.getiRDAProductCode();
+			String uinNumber = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getPolicyInfo()
+					.getUinNumber();
+			String policyStartDate = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getPolicyInfo()
+					.getPolicyStartDate();
+			String policyStartTime = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getPolicyInfo()
+					.getPolicyStartTime();
+			String policyEndDate = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getPolicyInfo()
+					.getPolicyEndDate();
+			String policyEndTime = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getPolicyInfo()
+					.getPolicyEndTime();
+			String policyTenure = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getPolicyInfo()
+					.getPolicyTenure();
+			String planClassification = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getPolicyInfo()
+					.getPlanClassification();
+			String costOfSaleGroup = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getPolicyInfo()
+					.getCostOfSaleGroup();
+			String dateInceptionFirstInsurancePolicy = gsabo.getPayload().getCreatequoterequest().getQuoteDetails()
+			  .getPolicyInfo().getDateInceptionFirstInsurancePolicy();
+			String businessSector = gsabo.getPayload().getCreatequoterequest().getQuoteDetails()
+			  .getPolicyInfo().getBusinessSector();
+			String autoRenewal = gsabo.getPayload().getCreatequoterequest().getQuoteDetails()
+			  .getPolicyInfo().getAutoRenewal();
+			String typeOfAutoRenewal = gsabo.getPayload().getCreatequoterequest().getQuoteDetails()
+			  .getPolicyInfo().getTypeOfAutoRenewal();
+			 String autoRenewalReason = gsabo.getPayload().getCreatequoterequest().getQuoteDetails()
+			  .getPolicyInfo().getAutoRenewalReason();
+			 
+			String typeOfProduct = gsabo.getPayload().getCreatequoterequest().getQuoteDetails()
+			  .getPolicyInfo().getTypeOfProduct();
+			String familyFloaterCategory = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getPolicyInfo()
+					.getFamilyFloaterCategory();
+			String totalNoOfPersonsCovered = gsabo.getPayload().getCreatequoterequest().getQuoteDetails()
+					.getPolicyInfo().getTotalNoofPersonsCovered();
+			String hospitalizationTotalPremium = gsabo.getPayload().getCreatequoterequest().getQuoteDetails()
+			.getPolicyInfo().getHospitalizationTotalPremium();
+			String personalAccidentTotalPremium = gsabo.getPayload().getCreatequoterequest().getQuoteDetails()
+			.getPolicyInfo().getPersonalAccidentTotalPremium();
+			String criticalIllnessTotalPremium = gsabo.getPayload().getCreatequoterequest().getQuoteDetails()
+			.getPolicyInfo().getCriticalIllnessTotalPremium();
+			String hospitalDailyCashTotalPremium = gsabo.getPayload().getCreatequoterequest().getQuoteDetails()
+			.getPolicyInfo().getHospitalDailyCashTotalPremium();
+			
+
+			String accountNo = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getCustomerAdditionalInfo()
+					.getAccountNo();
+			String ifscCode = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getCustomerAdditionalInfo()
+					.getIfscCode();
+			String receiptNo = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getCustomerAdditionalInfo()
+					.getReceiptNo();
+			String journalEntryNumber = gsabo.getPayload().getCreatequoterequest().getQuoteDetails()
+					.getCustomerAdditionalInfo().getJournalEntryNumber();
+			String journalEntryTransactionDate = gsabo.getPayload().getCreatequoterequest().getQuoteDetails()
+					.getCustomerAdditionalInfo().getJournalEntryTransactionDate();
+
+			String policyRelatedInformationInPhysicalFormat = gsabo.getPayload().getCreatequoterequest()
+					.getQuoteDetails().getElectronicInsuranceAccDetails().getPolicyRelatedInformationInPhysicalFormat();
+			String informationInEFormatWhenApplicable = gsabo.getPayload().getCreatequoterequest().getQuoteDetails()
+					.getElectronicInsuranceAccDetails().getInformationInEFormatWhenApplicable();
+			String chooseYourInsuranceRepository = gsabo.getPayload().getCreatequoterequest().getQuoteDetails()
+					.getElectronicInsuranceAccDetails().getChooseYourInsuranceRepository();
+			String eInsuranceAccountNumber = gsabo.getPayload().getCreatequoterequest().getQuoteDetails()
+					.getElectronicInsuranceAccDetails().geteInsuranceAccountNumber();
+			String cKYCNumber = gsabo.getPayload().getCreatequoterequest().getQuoteDetails()
+					.getElectronicInsuranceAccDetails().getcKYCNumber();
+
+			String stampDuty = gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getPolicyInfo()
+					.getStampDuty();
+			
+			genfieldvaluemap1.put("EffectDate", policyStartDate);
+			genfieldvaluemap1.put("ExpiryDate", policyEndDate);
+			genfieldvaluemap.put("GPA_Stamp_Duty_2",stampDuty);
+			genfieldvaluemap.put("Auto_Renewal_Reason_HGLI",autoRenewalReason);
+			genfieldvaluemap.put("Insurance_Repository_A_PO",chooseYourInsuranceRepository);
+			genfieldvaluemap.put("Plan_Name_A_PO",planName);
+			genfieldvaluemap.put("Policy_Tenure_In_years",policyTenure);
+			genfieldvaluemap.put("Hospital_Premi_GSA_PO",hospitalizationTotalPremium);
+			genfieldvaluemap.put("Cost_Of_Sales_Group_A_PO",costOfSaleGroup);
+			genfieldvaluemap.put("BusinessSector_GSA_PO",businessSector);
+			genfieldvaluemap.put("Type_of_Product_A_PO",typeOfProduct);
+			genfieldvaluemap.put("Arogya_Sanjeevani_IP_EFormat_A_PO",informationInEFormatWhenApplicable);
+			genfieldvaluemap.put("GSA_Type_of_Auto_Renewal",typeOfAutoRenewal);
+			genfieldvaluemap.put("UIN_Number_A_PO",uinNumber);
+			genfieldvaluemap.put("EInsurance_AN_A_PO",eInsuranceAccountNumber);
+			genfieldvaluemap.put("IFSC_Code_A_PO",ifscCode);
+			genfieldvaluemap.put("PA_Total_Premium",personalAccidentTotalPremium);
+			genfieldvaluemap.put("Account_No_A_PO",accountNo);
+			genfieldvaluemap.put("Receipt_Number_A_PO",receiptNo);
+			genfieldvaluemap.put("IRDA_Product_Code_A_PO",iRDAProductCode);
+			genfieldvaluemap.put("Date_Of_Inception_First_PO",Long.toString(validation.convertDateToMilisecond(dateInceptionFirstInsurancePolicy)));
+			genfieldvaluemap.put("GSA_Auto_Renewal",autoRenewal);
+			genfieldvaluemap.put("Policy_Start_Time_A_PO",policyStartTime);
+			genfieldvaluemap.put("CKYC_Number_A_PO",cKYCNumber);
+			genfieldvaluemap.put("Journal_Entry_Number_A_PO",journalEntryNumber);
+			genfieldvaluemap.put("HDC_Total_Premium",hospitalDailyCashTotalPremium);
+			genfieldvaluemap.put("Arogya_Sanjeevani_IP_A_PO",policyRelatedInformationInPhysicalFormat);
+			genfieldvaluemap.put("Endorsement_ASAN","");
+			genfieldvaluemap.put("Plan_Classification_AS_PO",planClassification);
+			genfieldvaluemap.put("CI_Total_Premium",criticalIllnessTotalPremium);
+			//genfieldvaluemap.put("Total_No_Persons_Covered_A_PO",totalNoOfPersonsCovered);
+			genfieldvaluemap.put("Journal_Entry_T_Date_A_PO",journalEntryTransactionDate);
+			genfieldvaluemap.put("Policy_End_Time_A_PO",policyEndTime);
+			genfieldvaluemap.put("Family_Floater_Category_A_PO",familyFloaterCategory);
+
+
+			
+			 if (typeOfProduct.equalsIgnoreCase("1")) {
+			 System.out.println("IN PolicyServiceInput typeOfProduct1:" + typeOfProduct);
+			 
+			 genfieldvaluemap.put("Total_No_Persons_Covered_A_PO", "1");
+			  
+			  } else if (typeOfProduct.equalsIgnoreCase("3")) {
+			  System.out.println("IN PolicyServiceInput typeOfProduct3:" + typeOfProduct);
+			  
+			  String memberTotal =validation.familyFloterTotalMembersGSA(familyFloaterCategory);
+			  genfieldvaluemap.put("Total_No_Persons_Covered_A_PO",memberTotal);
+			  
+			  }
+			 
+			System.out.println("GSAPrdtImpl : :genfieldvaluemap >>>>>>>: " + genfieldvaluemap);
+			System.out.println("GSAPrdtImpl : :genfieldvaluemap1 >>>>> : " + genfieldvaluemap1);
+
+			policySoabo.setFieldValueMap(genfieldvaluemap1);
+
+			// Start Insured Details
+			InsuredDetails[] insDetails = gsabo.getPayload().getCreatequoterequest().getInsuredDetails();
+			System.out.println("Total Insured:" + insDetails.length);
+			int insuredlength = insDetails.length;
+			int insuredCount = 1;
+			for (InsuredDetails insuredDetails : insDetails) {
+				InsuredSOABO insured = new InsuredSOABO();
+				System.out.println("GSAPrdtImpl :: inside InsuredDetails" + insuredDetails.getMemberId());
+				InsuredId = insuredDetails.getInsuredId();
+
+				String name = insuredDetails.getName();
+				String title = insuredDetails.getTitle();
+				String firstName = insuredDetails.getFirstName();
+				String middleName = insuredDetails.getMiddleName();
+				String lastName = insuredDetails.getLastName();
+				String gender = insuredDetails.getGender();
+				String dob = insuredDetails.getDob();
+				String isNomineeRequired = insuredDetails.getIsNomineeRequired();
+				String age = insuredDetails.getAge();
+				String dateOfMemberEntry = insuredDetails.getDateOfMemberEntry();
+				String memberId = insuredDetails.getMemberId();
+				String insuredRelationshipWithProposer = insuredDetails.getInsuredRelationshipWithProposer();
+				String educationalQualification = insuredDetails.getEducationalQualification();
+				String occupation = insuredDetails.getOccupation();
+				String maritalStatus = insuredDetails.getMaritalStatus();
+				String annualIncomeofProposer = insuredDetails.getAnnualIncomeofProposer();
+				String healthCardUHID = insuredDetails.getHealthCardUHID();
+				String haveYouEverBeenDeniedAnyHealthInsurance = insuredDetails.getHaveYouEverBeenDeniedAnyHealthInsurance();
+				String sbigMemberID = insuredDetails.getSbigMemberID();
+				String businessTypeSubCategory = insuredDetails.getBusinessTypeSubCategory();
+				String heightOfTheInsured = insuredDetails.getHeightOfTheInsured();
+				String weightOfTheInsured = insuredDetails.getWeightOfTheInsured();
+				String bmi = insuredDetails.getBmi();
+				String getbMICategory = insuredDetails.getbMICategory();
+				String ageMigration = insuredDetails.getAgeMigration();
+				String sumInsuredMigration = insuredDetails.getSumInsuredMigration();
+				
+				// Nominee
+				String nomineeName = insuredDetails.getNomineeDetails().getName();
+				String firstName2 = insuredDetails.getNomineeDetails().getFirstName();
+				String middleName2 = insuredDetails.getNomineeDetails().getMiddleName();
+				String lastName2 = insuredDetails.getNomineeDetails().getLastName();
+				String dob2 = insuredDetails.getNomineeDetails().getDob();
+				String ageOfTheNominee2 = insuredDetails.getNomineeDetails().getAgeOfTheNominee();
+				String relationshipWithTheProposer = insuredDetails.getNomineeDetails().getRelationShipWithProposer();
+				String nameOfAppointee2 = insuredDetails.getNomineeDetails().getNameOfAppointee();
+				String relationship = insuredDetails.getNomineeDetails().getRelationship();
+				String addressOfTheAppointee2 = insuredDetails.getNomineeDetails().getAddressOfTheAppointee();
+				 
+				String areYouSufferingFromAnyPreexistingDisease = insuredDetails.getHealthQuestionaire().getAreYouSufferingFromAnyPreexistingDisease();
+				String ifYesPleaseProvideDetails = insuredDetails.getHealthQuestionaire().getIfYesPleaseProvideDetails();
+				String noOfYears = insuredDetails.getHealthQuestionaire().getNoOfYears();
+				
+				Map<String, String> insuredFieldValuMap = new HashMap<String, String>();
+
+				insuredFieldValuMap.put("Pre_Exe_HIV_AIDS",areYouSufferingFromAnyPreexistingDisease);
+				if(areYouSufferingFromAnyPreexistingDisease.equalsIgnoreCase("1")) {
+					insuredFieldValuMap.put("PED1_Details",ifYesPleaseProvideDetails);
+					insuredFieldValuMap.put("PED2_Details",noOfYears);
+				}
+				insuredFieldValuMap.put("Hypertension_Loading_ASD_In","");
+				insuredFieldValuMap.put("Name_of_Appointee_PolicyRisk_ASD_In",nameOfAppointee2);
+				
+				insuredFieldValuMap.put("BMI_Category_ASD_In","");
+				insuredFieldValuMap.put("Health_Card_UHID",healthCardUHID);
+				insuredFieldValuMap.put("Address_of_the_Appointee_PolicyRisk_ASD_In",addressOfTheAppointee2);
+				insuredFieldValuMap.put("Last_Name_PolicyRisk_ASD_In",lastName2);
+				insuredFieldValuMap.put("Relationship_PolicyRisk_ASD_In",relationship);
+				insuredFieldValuMap.put("Middle_Name_ASD_In",middleName);
+				insuredFieldValuMap.put("Date_of_Birth_ASD_In",Long.toString(validation.convertDateToMilisecond(dob)));
+				insuredFieldValuMap.put("First_Name_ASD_In",firstName);
+				insuredFieldValuMap.put("Member_ID_ASD_In",memberId);
+				insuredFieldValuMap.put("Date_of_Member_entry_ASD_In",Long.toString(validation.convertDateToMilisecond(dateOfMemberEntry)));
+				insuredFieldValuMap.put("GSA_Business_Type_Sub_Category",businessTypeSubCategory);
+				insuredFieldValuMap.put("Is_Nominee_Required_ASD_In",isNomineeRequired);
+				insuredFieldValuMap.put("Middle_Name_PolicyRisk_ASD_In",middleName2);
+				insuredFieldValuMap.put("Title_ASD_In",title);
+				insuredFieldValuMap.put("Date_of_Birth_PolicyRisk_ASD_In",Long.toString(validation.convertDateToMilisecond(dob2)));
+				insuredFieldValuMap.put("Max_Insured_ID",getbMICategory);
+				insuredFieldValuMap.put("Gender_ASD_In",gender);
+				insuredFieldValuMap.put("Nominee_relationship_with_Insured_GSA",relationshipWithTheProposer);
+				insuredFieldValuMap.put("Weight_of_the_Insured_ASD_In",weightOfTheInsured);
+				insuredFieldValuMap.put("Age_ASD_In",age);
+				insuredFieldValuMap.put("Annual_Income",annualIncomeofProposer);
+				insuredFieldValuMap.put("Age_of_the_nominee_PolicyRisk_ASD_In",ageOfTheNominee2);
+				insuredFieldValuMap.put("First_Name_PolicyRisk_ASD_In",firstName2);
+				insuredFieldValuMap.put("BMI_ASD_In",bmi);
+				insuredFieldValuMap.put("Height_of_the_Insured_ASD_In",heightOfTheInsured);
+				insuredFieldValuMap.put("Last_Name_ASD_In",lastName);
+				
+				insuredFieldValuMap.put("Age_Mig_GSA",ageMigration);
+				insuredFieldValuMap.put("SumInsured_Mig_GSA",sumInsuredMigration);
+				
+				
+				/*insuredFieldValuMap.put("CI_SI_Type","");
+				insuredFieldValuMap.put("HDC_SI_Type","");
+				insuredFieldValuMap.put("HOSP_SI_Type","");				
+				*/
+				String doyouHaveOtherHealthInsurance = insuredDetails.getDoyouHaveOtherHealthInsurance();
+				String haveyouHadOtherHealthInsurance = insuredDetails.getHaveyouHadOtherHealthInsurance();
+
+				insuredFieldValuMap.put("Do_you_hve_other_health_Ins_ASAN",doyouHaveOtherHealthInsurance);
+				insuredFieldValuMap.put("Have_you_had_other_health_insurance",haveyouHadOtherHealthInsurance);
+				
+				// ConcurrentPolicyDetails
+				if (doyouHaveOtherHealthInsurance.equalsIgnoreCase("1")) {
+
+					ConcurrentPolicyDetails[] concurrentPolicyDetails = insuredDetails.getConcurrentPolicyDetails();
+
+					DynamicObjectVO dynamicconcurrentPolicyDetailsVo = new DynamicObjectVO();
+
+					for (ConcurrentPolicyDetails concurrentPolicyDetails1 : concurrentPolicyDetails) {
+
+						String policyNo = concurrentPolicyDetails1.getPolicyNo();
+						String insuredSince = concurrentPolicyDetails1.getInsuredSince();
+						String periodOfInsuranceFrom = concurrentPolicyDetails1.getPeriodOfInsuranceFrom();
+						String periodOfInsuranceTo = concurrentPolicyDetails1.getPeriodOfInsuranceTo();
+						String sumInsured2 = concurrentPolicyDetails1.getSumInsured();
+						String insuranceCompany = concurrentPolicyDetails1.getInsuranceCompany();
+						String premiumPaid = concurrentPolicyDetails1.getPremiumPaid();
+						String specialConditionExclusion = concurrentPolicyDetails1.getSpecialConditionExclusion();
+						String claimIfAny = concurrentPolicyDetails1.getClaimIfAny();
+						String descriptionOfClaimMade = concurrentPolicyDetails1.getDescriptionOfClaimMade();
+						String claimsReceived = concurrentPolicyDetails1.getClaimsReceived();
+						String cumulativeBonusPer = concurrentPolicyDetails1.getCumulativeBonusPer();
+
+						DynamicAttributeVO DynamicAttVoconcurrentPolicyDetails = new DynamicAttributeVO();
+
+						Map<String, String> dynamicArtbutconcurrentPolicyDetailsvaluemap = new HashMap<String, String>();
+
+						dynamicArtbutconcurrentPolicyDetailsvaluemap.put("Insured_Since",insuredSince);
+						dynamicArtbutconcurrentPolicyDetailsvaluemap.put("Policy_No",policyNo);
+						dynamicArtbutconcurrentPolicyDetailsvaluemap.put("Insurance_Company",insuranceCompany);
+						dynamicArtbutconcurrentPolicyDetailsvaluemap.put("Period_of_Insurance_To",periodOfInsuranceTo);
+						dynamicArtbutconcurrentPolicyDetailsvaluemap.put("DYN_DATA_ID","");
+						dynamicArtbutconcurrentPolicyDetailsvaluemap.put("Claims_Received",claimsReceived);
+						dynamicArtbutconcurrentPolicyDetailsvaluemap.put("Claim_if_Any",claimIfAny);
+						dynamicArtbutconcurrentPolicyDetailsvaluemap.put("INSUREDID","");
+						dynamicArtbutconcurrentPolicyDetailsvaluemap.put("Period_of_Insurance_From",periodOfInsuranceFrom);
+						dynamicArtbutconcurrentPolicyDetailsvaluemap.put("Cumulative_Bonus_Percentage",cumulativeBonusPer);
+						dynamicArtbutconcurrentPolicyDetailsvaluemap.put("Sum_Insured",sumInsured2);
+						dynamicArtbutconcurrentPolicyDetailsvaluemap.put("Description_of_Claim_made",descriptionOfClaimMade);
+						dynamicArtbutconcurrentPolicyDetailsvaluemap.put("Special_Condition_Exclusion",specialConditionExclusion);
+						dynamicArtbutconcurrentPolicyDetailsvaluemap.put("Do_you_have_other_health_insurance","");
+
+						DynamicAttVoconcurrentPolicyDetails.setValueMap(dynamicArtbutconcurrentPolicyDetailsvaluemap);
+
+						dynamicconcurrentPolicyDetailsVo.setBizTableName("Concurrent_PolDetails_ASAN");
+						dynamicconcurrentPolicyDetailsVo.getDynamicAttributeVOList()
+								.add(DynamicAttVoconcurrentPolicyDetails);
+					}
+					insured.getDynamicObjectList().add(dynamicconcurrentPolicyDetailsVo);
+				}
+				// ConcurrentPolicyDetails end
+
+				// PreviousPolicyDetails
+				
+
+					PreviousPolicyDetails[] previousPolicyDetails = insuredDetails.getPreviousPolicyDetails();
+
+					DynamicObjectVO dynamicpreviousPolicyDetailsVo = new DynamicObjectVO();
+
+					for (PreviousPolicyDetails previousPolicyDetails1 : previousPolicyDetails) {
+
+						String policyNo = previousPolicyDetails1.getPolicyNo();
+						String insuredSince = previousPolicyDetails1.getInsuredSince();
+						String periodOfInsuranceFrom = previousPolicyDetails1.getPeriodOfInsuranceFrom();
+						String periodOfInsuranceTo = previousPolicyDetails1.getPeriodOfInsuranceTo();
+						String sumInsured2 = previousPolicyDetails1.getSumInsured();
+						String insuranceCompany = previousPolicyDetails1.getInsuranceCompany();
+						String premiumPaid = previousPolicyDetails1.getPremiumPaid();
+						String specialConditionExclusion = previousPolicyDetails1.getSpecialConditionExclusion();
+						String claimIfAny = previousPolicyDetails1.getClaimIfAny();
+						String descriptionOfClaimMade = previousPolicyDetails1.getDescriptionOfClaimMade();
+						String claimsReceived = previousPolicyDetails1.getClaimsReceived();
+						String cumulativeBonusPer = previousPolicyDetails1.getCumulativeBonusPer();
+						String migrationFlag = previousPolicyDetails1.getMigrationFlag();
+						
+						DynamicAttributeVO DynamicAttVopreviousPolicyDetails = new DynamicAttributeVO();
+
+						Map<String, String> dynamicArtbutpreviousPolicyDetailsvaluemap = new HashMap<String, String>();
+
+						dynamicArtbutpreviousPolicyDetailsvaluemap.put("Insur_period_from",periodOfInsuranceFrom);
+						dynamicArtbutpreviousPolicyDetailsvaluemap.put("SumInsured_prevpol",sumInsured2);
+						dynamicArtbutpreviousPolicyDetailsvaluemap.put("PolicyNo",policyNo);
+						dynamicArtbutpreviousPolicyDetailsvaluemap.put("Insurance_cmpny",insuranceCompany);
+						dynamicArtbutpreviousPolicyDetailsvaluemap.put("DYN_DATA_ID","");
+						dynamicArtbutpreviousPolicyDetailsvaluemap.put("Claim_ifany_prevpol",claimIfAny);
+						dynamicArtbutpreviousPolicyDetailsvaluemap.put("INSUREDID","");
+						dynamicArtbutpreviousPolicyDetailsvaluemap.put("Spl_cond_excl_prevpol",specialConditionExclusion);
+						dynamicArtbutpreviousPolicyDetailsvaluemap.put("Cumulative_bonus_prevpol",cumulativeBonusPer);
+						dynamicArtbutpreviousPolicyDetailsvaluemap.put("Insur_period_To",periodOfInsuranceTo);
+						dynamicArtbutpreviousPolicyDetailsvaluemap.put("Descof_claim_made",descriptionOfClaimMade);
+						dynamicArtbutpreviousPolicyDetailsvaluemap.put("Insur_since_prevpol",insuredSince);
+						dynamicArtbutpreviousPolicyDetailsvaluemap.put("claims_rcvd_prevpol",claimsReceived);
+						dynamicArtbutpreviousPolicyDetailsvaluemap.put("Migration_Flag",migrationFlag);
+						
+
+						DynamicAttVopreviousPolicyDetails.setValueMap(dynamicArtbutpreviousPolicyDetailsvaluemap);
+
+						dynamicpreviousPolicyDetailsVo.setBizTableName("Prev_Policy_Details_ASAN");
+						dynamicpreviousPolicyDetailsVo.getDynamicAttributeVOList()
+								.add(DynamicAttVopreviousPolicyDetails);
+					}
+					insured.getDynamicObjectList().add(dynamicpreviousPolicyDetailsVo);
+				
+				// PreviousPolicyDetails end
+
+				//Insured_Object_Info_ASAN Start
+				DynamicObjectVO dynamicInsured_Object_Info_ASANVo = new DynamicObjectVO();
+				DynamicAttributeVO DynamicAttVoInsured_Object_Info_ASAN = new DynamicAttributeVO();
+				Map<String, String> dynamicArtbutInsured_Object_Info_ASANvaluemap = new HashMap<String, String>();
+
+
+				dynamicArtbutInsured_Object_Info_ASANvaluemap.put("BMI_Category_A_In","");
+				dynamicArtbutInsured_Object_Info_ASANvaluemap.put("Migration_flag_ASD_In","");
+				dynamicArtbutInsured_Object_Info_ASANvaluemap.put("Pre_existing_SI_ASD_In","");
+				dynamicArtbutInsured_Object_Info_ASANvaluemap.put("Educational_Qualification_ASD_In",educationalQualification);
+				dynamicArtbutInsured_Object_Info_ASANvaluemap.put("Portability_Flag_ASD_In","");
+				dynamicArtbutInsured_Object_Info_ASANvaluemap.put("Insured_Date_of_First_Policy_ASD_In","");
+				dynamicArtbutInsured_Object_Info_ASANvaluemap.put("BMI_Category_ASD_In","");
+				dynamicArtbutInsured_Object_Info_ASANvaluemap.put("DYN_DATA_ID","");
+				dynamicArtbutInsured_Object_Info_ASANvaluemap.put("Relationship_with_the_Proposer_ASD_In",insuredRelationshipWithProposer);
+				dynamicArtbutInsured_Object_Info_ASANvaluemap.put("Have_you_ever_been_denied_any_Health_insurance_ASD",haveYouEverBeenDeniedAnyHealthInsurance);
+				dynamicArtbutInsured_Object_Info_ASANvaluemap.put("Completed_Years_ASD_In","");
+				dynamicArtbutInsured_Object_Info_ASANvaluemap.put("INSUREDID","");
+				dynamicArtbutInsured_Object_Info_ASANvaluemap.put("Marital_Status_ASD_In",maritalStatus);
+				dynamicArtbutInsured_Object_Info_ASANvaluemap.put("TPAUHID_ASD1_In","");
+				dynamicArtbutInsured_Object_Info_ASANvaluemap.put("Weight_of_the_Insured_ASD_In","");
+				dynamicArtbutInsured_Object_Info_ASANvaluemap.put("BMI_ASD_In","");
+				dynamicArtbutInsured_Object_Info_ASANvaluemap.put("Height_of_the_Insured_ASD_In","");
+				dynamicArtbutInsured_Object_Info_ASANvaluemap.put("SBIG_Member_ID_ASD_In",sbigMemberID);
+				dynamicArtbutInsured_Object_Info_ASANvaluemap.put("TPA_UHID_ASD_In","");
+				dynamicArtbutInsured_Object_Info_ASANvaluemap.put("Occupation_ASD_In",occupation);
+
+				DynamicAttVoInsured_Object_Info_ASAN.setValueMap(dynamicArtbutInsured_Object_Info_ASANvaluemap);
+
+				dynamicInsured_Object_Info_ASANVo.setBizTableName("Insured_Object_Info_ASAN");
+			    dynamicInsured_Object_Info_ASANVo.getDynamicAttributeVOList()
+												.add(DynamicAttVoInsured_Object_Info_ASAN);
+
+				insured.getDynamicObjectList().add(dynamicInsured_Object_Info_ASANVo);
+				//Insured_Object_Info_ASAN End
+				
+
+				
+				System.out.println("GSAPrdtImpl : :After Extension");
+				if (PolicyId != null && !PolicyId.equalsIgnoreCase("")) {
+					insuredid = Integer.valueOf(InsuredId);
+					insured.setInsuredId(insuredid);
+					insured.setPolicyId(policyid);
+				}
+
+				policySoabo.setEffectDate(validation.Dateformat(effectiveDate));
+				policySoabo.setExpiryDate(validation.Dateformat(expiryDate));
+				PersonInsuredSOABO personInsuredSOABO = new PersonInsuredSOABO();
+				System.out.println("Name is :"+name);
+				name=firstName+middleName+lastName;
+				personInsuredSOABO.setName(name);
+                personInsuredSOABO.setDateOfBirth(validation.Dateformat(dob));
+				
+				personInsuredSOABO.setAge(Integer.parseInt(age));
+				System.out.println("Person Name :"+personInsuredSOABO.getName() +"DOB ::"+personInsuredSOABO.getDateOfBirth()+"Age :::"+personInsuredSOABO.getAge());
+				
+				insured.setPersonInsuredSOABO(personInsuredSOABO);
+				System.out.println("GSAPrdtImpl :: personInsuredSOABO.setName()" + "insured" + insured);
+				infobo.setFieldValueMap(genfieldvaluemap);
+				//insured.setFieldValueMap(insuredFieldValuMap);
+				System.out.println("GSAPrdtImpl : :infobo" + infobo + "GSAPrdtImpl ::insured" + insured);
+
+				String insuredName = insuredDetails.getName();
+				insured.setInsuredCategory(2);
+				insured.setInsuredName(insuredName);
+				insured.setInsuredStatus(1);
+				insured.setNumberofInsured((long) 1);
+				long NumberofInsured = 1;
+				insured.setNumberofPlan(NumberofInsured);
+				insured.setEffectiveDate(validation.Dateformat(effectiveDate));
+				insured.setExpiryDate(validation.Dateformat(expiryDate));
+				// End of Ins
+
+				// Cover types section
+				
+				PolicyCtSOABO CtBoHospitalizationCover = new PolicyCtSOABO();
+				PolicyCtSOABO CtBoHospitalDailyCash = new PolicyCtSOABO();
+				PolicyCtSOABO CtBoCritical_Illness = new PolicyCtSOABO();
+				PolicyCtSOABO CtBoPersonalAccident = new PolicyCtSOABO();
+				
+				
+				CoverDetails[] coverDtl = insuredDetails.getCoverDetails();
+				System.out.println("GSAPrdtImpl ::Total Cover" + coverDtl.length);
+				// Cover Info
+				if (coverDtl.length > 0) {
+					for (CoverDetails coverDetails : coverDtl) {
+						System.out.println("GSAPrdtImpl ::Cover id" + coverDetails.getCoverTypeId());
+						
+						// Start Hospital Daily Cash Cover type
+						if (coverDetails.getCoverTypeId().equalsIgnoreCase("900009486")) {
+
+							String coverId = coverDetails.getCoverId();
+							String deleteFlage = coverDetails.getDelete();
+							String coverTypeName = coverDetails.getCoverTypeName();
+							String coverTypeId = coverDetails.getCoverTypeId();
+							String sumInsured5 = coverDetails.getSumInsured();
+							String sicknessSumInsuredPerDay = coverDetails.getCoverAttributesDetails().getSicknessSumInsuredPerDay();
+				
+							if ((!StringUtils.isNullOrEmpty(deleteFlage) && deleteFlage.equalsIgnoreCase("Y"))
+									&& (!StringUtils.isNullOrEmpty(coverId))) {
+
+								System.out.println("Delete Cover of GSA001");
+								CtBoHospitalDailyCash.setCoverType((long) 900009486);
+								CtBoHospitalDailyCash.setCoverTypeCode("HDC");
+
+								CtBoHospitalDailyCash.setCoverTypeId((long) 900009486);
+								CtBoHospitalDailyCash.setInsuredId(insuredid);
+								policyCtId = Long.valueOf(coverId);
+								CtBoHospitalDailyCash.setPolicyCtId(policyCtId);
+								insured.getDeletedPolicyCtSOABOList().add(CtBoHospitalDailyCash);
+
+							} else {
+
+								Map<String, String> CtBoHospitalDailyCashCoverMap = new HashMap<String, String>();
+
+								
+								CtBoHospitalDailyCashCoverMap.put("Sum_Insured_CKP", sicknessSumInsuredPerDay);
+
+								CtBoHospitalDailyCash
+										.setFieldValueMap(CtBoHospitalDailyCashCoverMap);
+								
+								CtBoHospitalDailyCash.setCoverTypeId((long) 900009486);
+								CtBoHospitalDailyCash.setCoverTypeCode("HDC");
+								CtBoHospitalDailyCash.setCoverType((long) 900009486);
+								CtBoHospitalDailyCash.setSiOfCoverType(new BigDecimal(sumInsured5));
+								System.out.println("cover sum insured is:" + sumInsured5);
+								CtBoHospitalDailyCash
+										.setEffectiveDate(validation.Dateformat(effectiveDate));
+								CtBoHospitalDailyCash.setExpirtyDate(validation.Dateformat(expiryDate));
+								
+								
+								insuredFieldValuMap.put("HDC_SI_Type",sicknessSumInsuredPerDay);
+								
+								
+								if ((PolicyId != null && !PolicyId.equalsIgnoreCase(""))
+										&& (coverId != null && !coverId.equalsIgnoreCase(""))) {
+
+									insuredid = Integer.valueOf(InsuredId);
+									CtBoHospitalDailyCash.setInsuredId(insuredid);
+									policyCtId = Long.valueOf(coverId);
+									CtBoHospitalDailyCash.setPolicyCtId(policyCtId);
+								}
+
+								// Sickness Hospital daily cash Interest
+								// details
+								Benefits[] benefits = coverDetails.getBenefits();
+
+								for (Benefits benefits2 : benefits) {
+
+									System.out.println("GSAPrdtImpl ::Inside benfits section");
+									String interestId = benefits2.getBenefitTypeId();
+									String sumInsuredPerDay = benefits2.getSumInsuredPerDay();
+									String totalSumInsured = benefits2.getTotalSumInsured();
+									String noOfDays =  benefits2.getNoOfDays();
+									String balanceNoOfDays =  benefits2.getBalanceNoOfDays();
+									String balanceSumInsured = benefits2.getBalanceSumInsured();
+									//String sumInsured4 = benefits2.getSumInsured();
+
+									if (interestId.equals("900006619")) {
+										PolicyCtAcceSOABO ctAccBoSicknessHospitaldailycash = new PolicyCtAcceSOABO();
+										Map<String, String> CtAcceBoSicknessHospitaldailycashfldValmap = new HashMap<String, String>();
+
+										CtAcceBoSicknessHospitaldailycashfldValmap.put("Sum_Insured_per_day_GSA",
+												sumInsuredPerDay);
+										CtAcceBoSicknessHospitaldailycashfldValmap.put("No_of_days_GSA",
+												noOfDays);
+										CtAcceBoSicknessHospitaldailycashfldValmap.put("Balance_No_of_Days",
+												balanceNoOfDays); 
+										CtAcceBoSicknessHospitaldailycashfldValmap.put("Balance_Sum_Insured_GSA",
+														balanceSumInsured);
+										System.out.println("CtAcceBoSicknessHospitaldailycashfldValmap"
+												+ CtAcceBoSicknessHospitaldailycashfldValmap);
+
+										ctAccBoSicknessHospitaldailycash
+												.setFieldValueMap(CtAcceBoSicknessHospitaldailycashfldValmap);
+										ctAccBoSicknessHospitaldailycash.setInterestId((long) 900006619);
+										ctAccBoSicknessHospitaldailycash.setInterestName("Sickness Hospital daily cash");
+										ctAccBoSicknessHospitaldailycash.setInterestSi(new BigDecimal(totalSumInsured));
+										System.out.println("set Sickness Hospital daily cash  intrest");
+
+										if ((PolicyId != null && !PolicyId.equalsIgnoreCase(""))
+												&& (coverId != null && !coverId.equalsIgnoreCase(""))) {
+											policyCtId = Long.valueOf(coverId);
+											ctAccBoSicknessHospitaldailycash.setPolicyCtId(policyCtId);
+										}
+										CtBoHospitalDailyCash.getPolicyCtAcceSOABOList()
+												.add(ctAccBoSicknessHospitaldailycash);
+									}
+									System.out.println("end of Sickness Hospital daily cash intrest");
+
+									// End Sickness Hospital daily cash
+									// Interest
+
+									// Start Day Care Treatment Benefit
+									// interest
+									if (interestId.equals("900006620")) {
+
+										PolicyCtAcceSOABO ctAccBoDayCareTreatmentBenefit = new PolicyCtAcceSOABO();
+
+										Map<String, String> CtAcceBoDayCareTreatmentBenefitfldValmap = new HashMap<String, String>();
+
+										CtAcceBoDayCareTreatmentBenefitfldValmap.put("Sum_Insured_per_day_GSA",
+												sumInsuredPerDay);
+										CtAcceBoDayCareTreatmentBenefitfldValmap.put("No_of_days_GSA",
+												noOfDays);
+										CtAcceBoDayCareTreatmentBenefitfldValmap.put("Balance_No_of_Days",
+												balanceNoOfDays); 
+										CtAcceBoDayCareTreatmentBenefitfldValmap.put("Balance_Sum_Insured_GSA",
+														balanceSumInsured);
+										System.out.println("CtAcceBoDayCareTreatmentBenefitfldValmap"
+												+ CtAcceBoDayCareTreatmentBenefitfldValmap);
+
+										ctAccBoDayCareTreatmentBenefit
+												.setFieldValueMap(CtAcceBoDayCareTreatmentBenefitfldValmap);
+										ctAccBoDayCareTreatmentBenefit.setInterestId((long) 900006620);
+										ctAccBoDayCareTreatmentBenefit
+												.setInterestName("Day Care Treatment Benefit");
+										ctAccBoDayCareTreatmentBenefit
+												.setInterestSi(new BigDecimal(totalSumInsured));
+										System.out.println("ctAccBoDayCareTreatmentBenefit"
+												+ ctAccBoDayCareTreatmentBenefit);
+
+										if ((PolicyId != null && !PolicyId.equalsIgnoreCase(""))
+												&& (coverId != null && !coverId.equalsIgnoreCase(""))) {
+											policyCtId = Long.valueOf(coverId);
+											ctAccBoDayCareTreatmentBenefit.setPolicyCtId(policyCtId);
+										}
+										CtBoHospitalDailyCash.getPolicyCtAcceSOABOList()
+												.add(ctAccBoDayCareTreatmentBenefit);
+									}
+									System.out.println("end of Shared accommodation Cash Benefit benefit ");
+									// End Day Care Treatment Benefit
+									// interest
+
+									// Start Accident Hospital daily cash
+									// interest
+									if (interestId.equals("900006621")) {
+
+										PolicyCtAcceSOABO ctAccBoAccidentHospitalDailyCash = new PolicyCtAcceSOABO();
+
+										Map<String, String> CtAcceBoAccidentHospitalDailyCashfldValmap = new HashMap<String, String>();
+
+										CtAcceBoAccidentHospitalDailyCashfldValmap.put("Sum_Insured_per_day_GSA",
+												sumInsuredPerDay);
+										CtAcceBoAccidentHospitalDailyCashfldValmap.put("No_of_days_GSA",
+												noOfDays);
+										CtAcceBoAccidentHospitalDailyCashfldValmap.put("Balance_No_of_Days",
+												balanceNoOfDays); 
+										CtAcceBoAccidentHospitalDailyCashfldValmap.put("Balance_Sum_Insured_GSA",
+														balanceSumInsured);
+										System.out.println("CtAcceBoAccidentHospitalDailyCashfldValmap"
+												+ CtAcceBoAccidentHospitalDailyCashfldValmap);
+
+										ctAccBoAccidentHospitalDailyCash
+												.setFieldValueMap(CtAcceBoAccidentHospitalDailyCashfldValmap);
+										ctAccBoAccidentHospitalDailyCash.setInterestId((long) 900006621);
+										ctAccBoAccidentHospitalDailyCash
+												.setInterestName("Accident Hospital daily cash");
+										ctAccBoAccidentHospitalDailyCash
+												.setInterestSi(new BigDecimal(totalSumInsured));
+										System.out.println("ctAccBoAccidentHospitalDailyCash"
+												+ ctAccBoAccidentHospitalDailyCash);
+
+										if ((PolicyId != null && !PolicyId.equalsIgnoreCase(""))
+												&& (coverId != null && !coverId.equalsIgnoreCase(""))) {
+											policyCtId = Long.valueOf(coverId);
+											ctAccBoAccidentHospitalDailyCash.setPolicyCtId(policyCtId);
+										}
+										CtBoHospitalDailyCash.getPolicyCtAcceSOABOList()
+												.add(ctAccBoAccidentHospitalDailyCash);
+									}
+									System.out.println("end of Accident Hospital daily cash ");
+									// End Accident Hospital daily cash
+									// interest
+
+									// Start ICU Cash Benefit
+									// interest
+									if (interestId.equals("900006622")) {
+
+										PolicyCtAcceSOABO ctAccBoICUCashBenefit = new PolicyCtAcceSOABO();
+
+										Map<String, String> CtAcceBoICUCashBenefitfldValmap = new HashMap<String, String>();
+
+										CtAcceBoICUCashBenefitfldValmap.put("Sum_Insured_per_day_GSA",
+												sumInsuredPerDay);
+										CtAcceBoICUCashBenefitfldValmap.put("No_of_days_GSA",
+												noOfDays);
+										CtAcceBoICUCashBenefitfldValmap.put("Balance_No_of_Days",
+												balanceNoOfDays); 
+										CtAcceBoICUCashBenefitfldValmap.put("Balance_Sum_Insured_GSA",
+														balanceSumInsured);
+										System.out.println("CtAcceBoICUCashBenefitfldValmap"
+												+ CtAcceBoICUCashBenefitfldValmap);
+
+										ctAccBoICUCashBenefit
+												.setFieldValueMap(CtAcceBoICUCashBenefitfldValmap);
+										ctAccBoICUCashBenefit.setInterestId((long) 900006622);
+										ctAccBoICUCashBenefit
+												.setInterestName("ICU Cash Benefit");
+										ctAccBoICUCashBenefit
+												.setInterestSi(new BigDecimal(totalSumInsured));
+
+										System.out.println("ctAccBoICUCashBenefit"
+												+ ctAccBoICUCashBenefit);
+
+										if ((PolicyId != null && !PolicyId.equalsIgnoreCase(""))
+												&& (coverId != null && !coverId.equalsIgnoreCase(""))) {
+											policyCtId = Long.valueOf(coverId);
+											ctAccBoICUCashBenefit.setPolicyCtId(policyCtId);
+										}
+										CtBoHospitalDailyCash.getPolicyCtAcceSOABOList()
+												.add(ctAccBoICUCashBenefit);
+									}
+									System.out.println("end of ICU Cash Benefit");
+									// End ICU Cash Benefit
+									// interest
+
+									// Start Convalescence Benefit
+									// interest
+									if (interestId.equals("900006623")) {
+
+										PolicyCtAcceSOABO ctAccBoConvalescenceBenefit = new PolicyCtAcceSOABO();
+
+										Map<String, String> CtAcceBoConvalescenceBenefitfldValmap = new HashMap<String, String>();
+
+										CtAcceBoConvalescenceBenefitfldValmap.put("Sum_Insured_per_day_GSA",
+												sumInsuredPerDay);
+										CtAcceBoConvalescenceBenefitfldValmap.put("No_of_days_GSA",
+												noOfDays);
+										CtAcceBoConvalescenceBenefitfldValmap.put("Balance_No_of_Days",
+												balanceNoOfDays); 
+										CtAcceBoConvalescenceBenefitfldValmap.put("Balance_Sum_Insured_GSA",
+														balanceSumInsured);
+										System.out.println("CtAcceBoConvalescenceBenefitfldValmap"
+												+ CtAcceBoConvalescenceBenefitfldValmap);
+
+										ctAccBoConvalescenceBenefit.setFieldValueMap(CtAcceBoConvalescenceBenefitfldValmap);
+										ctAccBoConvalescenceBenefit.setInterestId((long) 900006623);
+										ctAccBoConvalescenceBenefit.setInterestName("Convalescence Benefit");
+										ctAccBoConvalescenceBenefit.setInterestSi(new BigDecimal(totalSumInsured));
+
+										System.out.println("ctAccBoConvalescenceBenefit" + ctAccBoConvalescenceBenefit);
+
+										if ((PolicyId != null && !PolicyId.equalsIgnoreCase(""))
+												&& (coverId != null && !coverId.equalsIgnoreCase(""))) {
+											policyCtId = Long.valueOf(coverId);
+											ctAccBoConvalescenceBenefit.setPolicyCtId(policyCtId);
+										}
+										CtBoHospitalDailyCash.getPolicyCtAcceSOABOList()
+												.add(ctAccBoConvalescenceBenefit);
+									}
+									System.out.println("end of Convalescence Benefit ");
+									// End Convalescence Benefit
+									// interest
+
+									// Start Compassionate Benefit
+									// interest
+									if (interestId.equals("900006624")) {
+
+										PolicyCtAcceSOABO ctAccBoCompassionateBenefit = new PolicyCtAcceSOABO();
+
+										Map<String, String> CtAcceBoConvalescenceBenefitfldValmap = new HashMap<String, String>();
+
+										CtAcceBoConvalescenceBenefitfldValmap.put("Sum_Insured_per_day_GSA",
+												sumInsuredPerDay);
+										CtAcceBoConvalescenceBenefitfldValmap.put("No_of_days_GSA",
+												noOfDays);
+										CtAcceBoConvalescenceBenefitfldValmap.put("Balance_No_of_Days",
+												balanceNoOfDays); 
+										CtAcceBoConvalescenceBenefitfldValmap.put("Balance_Sum_Insured_GSA",
+														balanceSumInsured);
+										System.out.println("CtAcceBoConvalescenceBenefitfldValmap"
+												+ CtAcceBoConvalescenceBenefitfldValmap);
+
+										ctAccBoCompassionateBenefit
+												.setFieldValueMap(CtAcceBoConvalescenceBenefitfldValmap);
+										ctAccBoCompassionateBenefit.setInterestId((long) 900006624);
+										ctAccBoCompassionateBenefit
+												.setInterestName("Compassionate Benefit");
+										ctAccBoCompassionateBenefit.setInterestSi(new BigDecimal(totalSumInsured));
+
+										System.out.println("ctAccBoCompassionateBenefit"
+												+ ctAccBoCompassionateBenefit);
+
+										if ((PolicyId != null && !PolicyId.equalsIgnoreCase(""))
+												&& (coverId != null && !coverId.equalsIgnoreCase(""))) {
+											policyCtId = Long.valueOf(coverId);
+											ctAccBoCompassionateBenefit.setPolicyCtId(policyCtId);
+										}
+										CtBoHospitalDailyCash.getPolicyCtAcceSOABOList()
+												.add(ctAccBoCompassionateBenefit);
+									}
+									System.out.println("end of Compassionate Benefit ");
+									// End Compassionate Benefit
+									// interest
+								}
+
+							}
+							System.out.println("Before Add CtBoCtBoHospitalDailyCash insured");
+							insured.getPolicyCtSOABOList().add(CtBoHospitalDailyCash);
+							System.out.println("After Add CtBoCtBoHospitalDailyCash to insured");
+						} // CtBoHospitalDailyCash Cover end
+
+						// Start Hospitalization Cover type
+						if (coverDetails.getCoverTypeId().equalsIgnoreCase("900009485")) {
+
+							System.out.println("Inside Hospitalization Cover");
+							String coverId = coverDetails.getCoverId();
+							String deleteFlage = coverDetails.getDelete();
+							String coverTypeName = coverDetails.getCoverTypeName();
+							String coverTypeId = coverDetails.getCoverTypeId();
+							String sumInsured2 = coverDetails.getSumInsured();
+							
+							String roomBoardingChargesPerDayLimit = coverDetails.getCoverAttributesDetails().getRoomBoardingChargesPerDayLimit();
+							String iCUChargesPerDayLimit = coverDetails.getCoverAttributesDetails().getiCUChargesPerDayLimit();
+							String preHospitalisationDays = coverDetails.getCoverAttributesDetails().getPreHospitalisationDays();
+							String postHospitalisationDays = coverDetails.getCoverAttributesDetails().getPostHospitalisationDays();
+							String mentalIllnessPercOfSI = coverDetails.getCoverAttributesDetails().getMentalIllnessPercOfSI();
+							String ambulanceChargesPerDay = coverDetails.getCoverAttributesDetails().getAmbulanceChargesPerDay();
+							String maxAmbulanceCharges = coverDetails.getCoverAttributesDetails().getMaxAmbulanceCharges();
+							String domicilaryHospitalization = coverDetails.getCoverAttributesDetails().getDomicilaryHospitalization();
+							String maxDomicilaryExpenses = coverDetails.getCoverAttributesDetails().getMaxDomicilaryExpenses();
+							String reinstatementPercOfSI = coverDetails.getCoverAttributesDetails().getReinstatementPercOfSI();
+							String reinstatementSI = coverDetails.getCoverAttributesDetails().getReinstatementSI();
+							String organDonorExpenses = coverDetails.getCoverAttributesDetails().getOrganDonorExpenses();
+							String percentageOfCopay = coverDetails.getCoverAttributesDetails().getPercentageOfCopay();
+							String deductibleAmount = coverDetails.getCoverAttributesDetails().getDeductibleAmount();
+							String sumInsuredDropDown = coverDetails.getCoverAttributesDetails().getSumInsured();
+							
+							if ((!StringUtils.isNullOrEmpty(deleteFlage) && deleteFlage.equalsIgnoreCase("Y"))
+									&& (!StringUtils.isNullOrEmpty(coverId))) {
+
+								System.out.println("Delete Hospitalization Cover");
+								CtBoHospitalizationCover.setCoverType((long) 900009485);
+								CtBoHospitalizationCover.setCoverTypeCode("HC");
+
+								CtBoHospitalizationCover.setCoverTypeId((long) 900009485);
+								CtBoHospitalizationCover.setInsuredId(insuredid);
+								policyCtId = Long.valueOf(coverId);
+								CtBoHospitalizationCover.setPolicyCtId(policyCtId);
+								insured.getDeletedPolicyCtSOABOList().add(CtBoHospitalizationCover);
+
+							} else {
+
+								Map<String, String> CtBoHospitalizationCoverMap = new HashMap<String, String>();
+								// Integer siInt = Integer.parseInt(sumInsured);
+								
+								CtBoHospitalizationCoverMap.put("Sum_Insured_CKP", sumInsuredDropDown);
+								CtBoHospitalizationCoverMap.put("mig_gsa_value", sumInsured2);
+								
+								CtBoHospitalizationCover.setFieldValueMap(CtBoHospitalizationCoverMap);
+								System.out.println("Inside Hospitalization Cover type block");
+								CtBoHospitalizationCover.setCoverTypeId((long) 900009485);
+								CtBoHospitalizationCover.setCoverTypeCode("HC");
+								CtBoHospitalizationCover.setCoverType((long) 900009485);
+								CtBoHospitalizationCover.setSiOfCoverType(new BigDecimal(sumInsured2));
+								System.out.println(" Hospitalization Cover sum insured is: " + sumInsured2);
+								CtBoHospitalizationCover.setEffectiveDate(validation.Dateformat(effectiveDate));
+								CtBoHospitalizationCover.setExpirtyDate(validation.Dateformat(expiryDate));
+								
+								insuredFieldValuMap.put("HOSP_SI_Type",sumInsured2);
+								
+								if ((PolicyId != null && !PolicyId.equalsIgnoreCase(""))
+										&& (coverId != null && !coverId.equalsIgnoreCase(""))) {
+
+									insuredid = Integer.valueOf(InsuredId);
+									CtBoHospitalizationCover.setInsuredId(insuredid);
+									policyCtId = Long.valueOf(coverId);
+									CtBoHospitalizationCover.setPolicyCtId(policyCtId);
+								}
+
+								//Hospitalization Cover Benefit Interest
+								// details
+								Benefits[] benefits = coverDetails.getBenefits();
+
+								for (Benefits benefits2 : benefits) {
+
+									System.out.println("Inside Hospitalization Cover intrest section");
+									String interestId = benefits2.getBenefitTypeId();
+									String benefitOpted = benefits2.getBenefitOpted();
+									String sumInsured4 = benefits2.getSumInsured();
+
+									// Start Hospitalization Medical Expenses
+									// interest
+									if (interestId.equals("900006612")) {
+
+										PolicyCtAcceSOABO ctAccBoHospitalizationMedicalExpenses = new PolicyCtAcceSOABO();
+
+										Map<String, String> CtAcceBoHospitalizationMedicalExpensesfldValmap = new HashMap<String, String>();
+
+										CtAcceBoHospitalizationMedicalExpensesfldValmap.put("Benefit_Opted_GSA", benefitOpted);
+										CtAcceBoHospitalizationMedicalExpensesfldValmap.put("Room_Boarding_Charges_GSA", roomBoardingChargesPerDayLimit);
+										CtAcceBoHospitalizationMedicalExpensesfldValmap.put("ICU_Charges_GSA", iCUChargesPerDayLimit);
+										CtAcceBoHospitalizationMedicalExpensesfldValmap.put("Pre_Hospitalisation_Days_GSA", preHospitalisationDays);
+										CtAcceBoHospitalizationMedicalExpensesfldValmap.put("Post_Hospitalisation_Days_GSA", postHospitalisationDays);
+										CtAcceBoHospitalizationMedicalExpensesfldValmap.put("Mental_Illness_SI", mentalIllnessPercOfSI);
+										CtAcceBoHospitalizationMedicalExpensesfldValmap.put("Ambulance_charges_GSA", ambulanceChargesPerDay);
+										CtAcceBoHospitalizationMedicalExpensesfldValmap.put("Max_Ambulance_charges_GSA", maxAmbulanceCharges);
+										CtAcceBoHospitalizationMedicalExpensesfldValmap.put("Domicilary_Hospitalization_GSA", domicilaryHospitalization);
+										CtAcceBoHospitalizationMedicalExpensesfldValmap.put("Max_Domicilary_Expenses_GSA", maxDomicilaryExpenses);
+										CtAcceBoHospitalizationMedicalExpensesfldValmap.put("Reinstatement_SI_GSA", reinstatementPercOfSI);
+										CtAcceBoHospitalizationMedicalExpensesfldValmap.put("Reinstatement_SI", reinstatementSI);
+										CtAcceBoHospitalizationMedicalExpensesfldValmap.put("Organ_Donor_expense_GSA", organDonorExpenses);
+										CtAcceBoHospitalizationMedicalExpensesfldValmap.put("Percentage_of_copay_GSA", percentageOfCopay);
+										CtAcceBoHospitalizationMedicalExpensesfldValmap.put("Deductible_Amount_GSA", deductibleAmount);
+										
+										System.out.println(
+												"CtAcceBoHospitalizationMedicalExpensesfldValmap" + CtAcceBoHospitalizationMedicalExpensesfldValmap);
+
+										ctAccBoHospitalizationMedicalExpenses.setFieldValueMap(CtAcceBoHospitalizationMedicalExpensesfldValmap);
+										ctAccBoHospitalizationMedicalExpenses.setInterestId((long) 900006612);
+										ctAccBoHospitalizationMedicalExpenses.setInterestName("Hospitalization Medical Expenses");
+										ctAccBoHospitalizationMedicalExpenses.setInterestSi(new BigDecimal(sumInsured4));
+
+										System.out.println("ctAccBoHospitalizationMedicalExpenses" + ctAccBoHospitalizationMedicalExpenses);
+
+										if ((PolicyId != null && !PolicyId.equalsIgnoreCase(""))
+												&& (coverId != null && !coverId.equalsIgnoreCase(""))) {
+											policyCtId = Long.valueOf(coverId);
+											ctAccBoHospitalizationMedicalExpenses.setPolicyCtId(policyCtId);
+										}
+										CtBoHospitalizationCover.getPolicyCtAcceSOABOList().add(ctAccBoHospitalizationMedicalExpenses);
+									}
+									System.out.println("end of Hospitalization Medical Expenses ");
+									// End Hospitalization Medical Expenses
+									// interest
+									//Start Co-payment benefits
+									if (interestId.equals("900006614")) {
+
+										PolicyCtAcceSOABO ctAccBoCopayment = new PolicyCtAcceSOABO();
+
+										Map<String, String> CtAcceBoCopaymentfldValmap = new HashMap<String, String>();
+
+										CtAcceBoCopaymentfldValmap.put("Benefit_Opted_GSA", benefitOpted);
+										
+										System.out.println(
+												"CtAcceBoCopaymentfldValmap" + CtAcceBoCopaymentfldValmap);
+
+										ctAccBoCopayment.setFieldValueMap(CtAcceBoCopaymentfldValmap);
+										ctAccBoCopayment.setInterestId((long) 900006614);
+										ctAccBoCopayment.setInterestName("Co-payment");
+										ctAccBoCopayment.setInterestSi(new BigDecimal(sumInsured4));
+
+										System.out.println("ctAccBoCopayment" + ctAccBoCopayment);
+
+										if ((PolicyId != null && !PolicyId.equalsIgnoreCase(""))
+												&& (coverId != null && !coverId.equalsIgnoreCase(""))) {
+											policyCtId = Long.valueOf(coverId);
+											ctAccBoCopayment.setPolicyCtId(policyCtId);
+										}
+										CtBoHospitalizationCover.getPolicyCtAcceSOABOList().add(ctAccBoCopayment);
+									}
+									System.out.println("end of Co-payment benefits "); 
+									
+									// End Co-payment benefits
+									// interest
+									//Start Maternity Expenses cover benefits
+									if (interestId.equals("900006615")) {
+
+										PolicyCtAcceSOABO ctAccBoMaternityExpensesCover = new PolicyCtAcceSOABO();
+
+										Map<String, String> CtAcceBoMaternityExpensesCoverfldValmap = new HashMap<String, String>();
+
+										CtAcceBoMaternityExpensesCoverfldValmap.put("Benefit_Opted_GSA", benefitOpted);
+										
+										System.out.println(
+												"CtAcceBoMaternityExpensesCoverfldValmap" + CtAcceBoMaternityExpensesCoverfldValmap);
+
+										ctAccBoMaternityExpensesCover.setFieldValueMap(CtAcceBoMaternityExpensesCoverfldValmap);
+										ctAccBoMaternityExpensesCover.setInterestId((long) 900006615);
+										ctAccBoMaternityExpensesCover.setInterestName("Maternity Expenses cover");
+										ctAccBoMaternityExpensesCover.setInterestSi(new BigDecimal(sumInsured4));
+
+										System.out.println("ctAccBoMaternityExpensesCover" + ctAccBoMaternityExpensesCover);
+
+										if ((PolicyId != null && !PolicyId.equalsIgnoreCase(""))
+												&& (coverId != null && !coverId.equalsIgnoreCase(""))) {
+											policyCtId = Long.valueOf(coverId);
+											ctAccBoMaternityExpensesCover.setPolicyCtId(policyCtId);
+										}
+										CtBoHospitalizationCover.getPolicyCtAcceSOABOList().add(ctAccBoMaternityExpensesCover);
+									}
+									System.out.println("end of   Maternity Expenses cover benefits ");
+									// End  Maternity Expenses cover benefits
+									// interest
+									//Start New born expense cover benefits
+									
+									if (interestId.equals("900006616")) {
+
+										PolicyCtAcceSOABO ctAccBoNewBornExpenseCover = new PolicyCtAcceSOABO();
+
+										Map<String, String> CtAcceBoNewBornExpenseCoverfldValmap = new HashMap<String, String>();
+
+										CtAcceBoNewBornExpenseCoverfldValmap.put("Benefit_Opted_GSA", benefitOpted);
+										
+										System.out.println(
+												"CtAcceBoNewBornExpenseCoverfldValmap" + CtAcceBoNewBornExpenseCoverfldValmap);
+
+										ctAccBoNewBornExpenseCover.setFieldValueMap(CtAcceBoNewBornExpenseCoverfldValmap);
+										ctAccBoNewBornExpenseCover.setInterestId((long) 900006616);
+										ctAccBoNewBornExpenseCover.setInterestName("New born expense cover");
+										ctAccBoNewBornExpenseCover.setInterestSi(new BigDecimal(sumInsured4));
+
+										System.out.println("ctAccBoNewBornExpenseCover" + ctAccBoNewBornExpenseCover);
+
+										if ((PolicyId != null && !PolicyId.equalsIgnoreCase(""))
+												&& (coverId != null && !coverId.equalsIgnoreCase(""))) {
+											policyCtId = Long.valueOf(coverId);
+											ctAccBoNewBornExpenseCover.setPolicyCtId(policyCtId);
+										}
+										CtBoHospitalizationCover.getPolicyCtAcceSOABOList().add(ctAccBoNewBornExpenseCover);
+									}
+									
+									System.out.println("end of New born expense cover ");
+									// End New born expense cover Benefit
+									// interest
+									//Start Outpatient expense cover benefits
+									
+									if (interestId.equals("900006617")) {
+
+										PolicyCtAcceSOABO ctAccBoOutpatientExpenseCover = new PolicyCtAcceSOABO();
+
+										Map<String, String> CtAcceBoOutpatientExpenseCoverfldValmap = new HashMap<String, String>();
+
+										CtAcceBoOutpatientExpenseCoverfldValmap.put("Benefit_Opted_GSA", benefitOpted);
+										
+										System.out.println(
+												"CtAcceBoOutpatientExpenseCoverfldValmap" + CtAcceBoOutpatientExpenseCoverfldValmap);
+
+										ctAccBoOutpatientExpenseCover.setFieldValueMap(CtAcceBoOutpatientExpenseCoverfldValmap);
+										ctAccBoOutpatientExpenseCover.setInterestId((long) 900006617);
+										ctAccBoOutpatientExpenseCover.setInterestName("Outpatient expense cover");
+										ctAccBoOutpatientExpenseCover.setInterestSi(new BigDecimal(sumInsured4));
+
+										System.out.println("ctAccBoOutpatientExpenseCover" + ctAccBoOutpatientExpenseCover);
+
+										if ((PolicyId != null && !PolicyId.equalsIgnoreCase(""))
+												&& (coverId != null && !coverId.equalsIgnoreCase(""))) {
+											policyCtId = Long.valueOf(coverId);
+											ctAccBoOutpatientExpenseCover.setPolicyCtId(policyCtId);
+										}
+										CtBoHospitalizationCover.getPolicyCtAcceSOABOList().add(ctAccBoOutpatientExpenseCover);
+									}
+									
+									System.out.println("end of Outpatient expense cover benefits");
+									// End Outpatient expense cover benefits
+									// interest
+									//Start Aggregate deductible benefits
+									
+									if (interestId.equals("900006618")) {
+
+										PolicyCtAcceSOABO ctAccBoAggregateDeductible = new PolicyCtAcceSOABO();
+
+										Map<String, String> CtAcceBoAggregateDeductiblefldValmap = new HashMap<String, String>();
+
+										CtAcceBoAggregateDeductiblefldValmap.put("Benefit_Opted_GSA", benefitOpted);
+										
+										System.out.println(
+												"ctAccBoAggregateDeductible" + ctAccBoAggregateDeductible);
+
+										ctAccBoAggregateDeductible.setFieldValueMap(CtAcceBoAggregateDeductiblefldValmap);
+										ctAccBoAggregateDeductible.setInterestId((long) 900006618);
+										ctAccBoAggregateDeductible.setInterestName("Aggregate deductible");
+										ctAccBoAggregateDeductible.setInterestSi(new BigDecimal(sumInsured4));
+
+										System.out.println("ctAccBoAggregateDeductible" + ctAccBoAggregateDeductible);
+
+										if ((PolicyId != null && !PolicyId.equalsIgnoreCase(""))
+												&& (coverId != null && !coverId.equalsIgnoreCase(""))) {
+											policyCtId = Long.valueOf(coverId);
+											ctAccBoAggregateDeductible.setPolicyCtId(policyCtId);
+										}
+										CtBoHospitalizationCover.getPolicyCtAcceSOABOList().add(ctAccBoAggregateDeductible);
+									}
+									System.out.println("end of Aggregate deductible benefits");
+									// End Aggregate deductible cover benefits
+								}
+
+							}
+							System.out.println("Before Add CtBoHospitalizationCover insured");
+							insured.getPolicyCtSOABOList().add(CtBoHospitalizationCover);
+							System.out.println("After Add CtBoHospitalizationCover to insured");
+						} // Recovery Benefit cover end
+
+						// Start Critical Illness cover type
+						if (coverDetails.getCoverTypeId().equalsIgnoreCase("900009484")) {
+
+							System.out.println("inside Critical Illness cover");
+							String coverId = coverDetails.getCoverId();
+							String deleteFlage = coverDetails.getDelete();
+							String coverTypeName = coverDetails.getCoverTypeName();
+							String coverTypeId = coverDetails.getCoverTypeId();
+							String sumInsured2 = coverDetails.getSumInsured();
+
+							
+
+							if ((!StringUtils.isNullOrEmpty(deleteFlage) && deleteFlage.equalsIgnoreCase("Y"))
+									&& (!StringUtils.isNullOrEmpty(coverId))) {
+
+								System.out.println("Delete Critical Illness cover");
+								CtBoCritical_Illness.setCoverType((long) 900009484);
+								CtBoCritical_Illness.setCoverTypeCode("CRI");
+
+								CtBoCritical_Illness.setCoverTypeId((long) 900009484);
+								CtBoCritical_Illness.setInsuredId(insuredid);
+								policyCtId = Long.valueOf(coverId);
+								CtBoCritical_Illness.setPolicyCtId(policyCtId);
+								insured.getDeletedPolicyCtSOABOList().add(CtBoCritical_Illness);
+
+							} else {
+
+								Map<String, String> CtBoCriticalIllnessMap = new HashMap<String, String>();
+								System.out.println("CtBoCriticalIllnessMap start>>>>>>>: " + CtBoCriticalIllnessMap);
+								// Integer siInt = Integer.parseInt(sumInsured);
+
+								
+
+								CtBoCritical_Illness.setFieldValueMap(CtBoCriticalIllnessMap);
+								System.out.println("Inside Critical Illness Cover type block");
+								CtBoCritical_Illness.setCoverTypeId((long) 900009484);
+								// CtBoStandardCover.setCoverTypeName("");
+								CtBoCritical_Illness.setCoverTypeCode("RNB001");
+								CtBoCritical_Illness.setCoverType((long) 900009484);
+								CtBoCritical_Illness.setSiOfCoverType(new BigDecimal(sumInsured2));
+								System.out.println("Critical Illness Cover sum insured is :" + sumInsured2);
+								CtBoCritical_Illness.setEffectiveDate(validation.Dateformat(effectiveDate));
+								CtBoCritical_Illness.setExpirtyDate(validation.Dateformat(expiryDate));
+								
+
+								insuredFieldValuMap.put("CI_SI_Type",sumInsured2);
+								
+								
+								if ((PolicyId != null && !PolicyId.equalsIgnoreCase(""))
+										&& (coverId != null && !coverId.equalsIgnoreCase(""))) {
+
+									insuredid = Integer.valueOf(InsuredId);
+									CtBoCritical_Illness.setInsuredId(insuredid);
+									policyCtId = Long.valueOf(coverId);
+									CtBoCritical_Illness.setPolicyCtId(policyCtId);
+								}
+							}
+							System.out.println("Before Add CtBoCritical_Illness insured");
+							insured.getPolicyCtSOABOList().add(CtBoCritical_Illness);
+							System.out.println("After Add CtBoCritical_Illness to insured");
+						} // Critical_Illness end
+
+						// Start Personal Accident cover
+						if (coverDetails.getCoverTypeId().equalsIgnoreCase("900009643")) {
+
+							System.out.println("Inside Personal Accident Cover");
+							String coverId = coverDetails.getCoverId();
+							String deleteFlage = coverDetails.getDelete();
+							String coverTypeName = coverDetails.getCoverTypeName();
+							String coverTypeId = coverDetails.getCoverTypeId();
+							String sumInsured2 = coverDetails.getSumInsured();
+							
+							String accidentalDeathSumInsured = coverDetails.getCoverAttributesDetails().getAccidentalDeathSumInsured();
+							
+							if ((!StringUtils.isNullOrEmpty(deleteFlage) && deleteFlage.equalsIgnoreCase("Y"))
+									&& (!StringUtils.isNullOrEmpty(coverId))) {
+
+								System.out.println("Delete Personal Accident Cover");
+								CtBoPersonalAccident.setCoverType((long) 900009643);
+								CtBoPersonalAccident.setCoverTypeCode("GSA_PA");
+
+								CtBoPersonalAccident.setCoverTypeId((long) 900009643);
+								CtBoPersonalAccident.setInsuredId(insuredid);
+								policyCtId = Long.valueOf(coverId);
+								CtBoPersonalAccident.setPolicyCtId(policyCtId);
+								insured.getDeletedPolicyCtSOABOList().add(CtBoPersonalAccident);
+
+							} else {
+
+								Map<String, String> CtBoPersonalAccidentCoverMap = new HashMap<String, String>();
+								
+								CtBoPersonalAccidentCoverMap.put("Sum_Insured_CKP", accidentalDeathSumInsured);
+								
+								CtBoPersonalAccident.setFieldValueMap(CtBoPersonalAccidentCoverMap);
+								System.out.println("Inside Personal Accident Cover type block");
+								CtBoPersonalAccident.setCoverTypeId((long) 900009643);
+								CtBoPersonalAccident.setCoverTypeCode("GSA_PA");
+								CtBoPersonalAccident.setCoverType((long) 900009643);
+								CtBoPersonalAccident.setSiOfCoverType(new BigDecimal(sumInsured2));
+								System.out.println(" PersonalAccident Cover sum insured is: " + sumInsured2);
+								CtBoPersonalAccident.setEffectiveDate(validation.Dateformat(effectiveDate));
+								CtBoPersonalAccident.setExpirtyDate(validation.Dateformat(expiryDate));
+								
+								insuredFieldValuMap.put("PA_SI_Type",sumInsured2);
+								
+								
+								if ((PolicyId != null && !PolicyId.equalsIgnoreCase(""))
+										&& (coverId != null && !coverId.equalsIgnoreCase(""))) {
+
+									insuredid = Integer.valueOf(InsuredId);
+									CtBoPersonalAccident.setInsuredId(insuredid);
+									policyCtId = Long.valueOf(coverId);
+									CtBoPersonalAccident.setPolicyCtId(policyCtId);
+								}
+
+								//Personal Accident Benefit Interest
+								// details
+								Benefits[] benefits = coverDetails.getBenefits();
+
+								for (Benefits benefits2 : benefits) {
+
+									System.out.println("Inside Personal Accident Cover intrest section");
+									String interestId = benefits2.getBenefitTypeId();
+									String balanceSumInsured = benefits2.getBalanceSumInsured();
+									String sumInsured4 = benefits2.getSumInsured();
+
+									// Start Accidental Death
+									if (interestId.equals("900006783")) {
+
+										PolicyCtAcceSOABO ctAccBoAccidentalDeath = new PolicyCtAcceSOABO();
+
+										Map<String, String> CtAcceBoAccidentalDeathfldValmap = new HashMap<String, String>();
+
+										CtAcceBoAccidentalDeathfldValmap.put("Balance_Sum_Insured_AD_GSA", balanceSumInsured);
+										
+										System.out.println(
+												"CtAcceBoAccidentalDeathfldValmap::" + CtAcceBoAccidentalDeathfldValmap);
+
+										ctAccBoAccidentalDeath.setFieldValueMap(CtAcceBoAccidentalDeathfldValmap);
+										ctAccBoAccidentalDeath.setInterestId((long) 900006783);
+										ctAccBoAccidentalDeath.setInterestName("Accidental death");
+										ctAccBoAccidentalDeath.setInterestSi(new BigDecimal(sumInsured4));
+
+										System.out.println("ctAccBoAccidentalDeath" + ctAccBoAccidentalDeath);
+
+										if ((PolicyId != null && !PolicyId.equalsIgnoreCase(""))
+												&& (coverId != null && !coverId.equalsIgnoreCase(""))) {
+											policyCtId = Long.valueOf(coverId);
+											ctAccBoAccidentalDeath.setPolicyCtId(policyCtId);
+										}
+										CtBoPersonalAccident.getPolicyCtAcceSOABOList().add(ctAccBoAccidentalDeath);
+									}
+									System.out.println("end of Accidental Death ");
+									// End Accidental Death
+									
+									// Start PTD
+									if (interestId.equals("900006784")) {
+
+										PolicyCtAcceSOABO ctAccBoPTD = new PolicyCtAcceSOABO();
+
+										Map<String, String> CtAcceBoPTDfldValmap = new HashMap<String, String>();
+
+										CtAcceBoPTDfldValmap.put("Balance_Sum_Insured_AD_GSA", balanceSumInsured);
+										
+										System.out.println(
+												"CtAcceBoPTDfldValmap::" + CtAcceBoPTDfldValmap);
+
+										ctAccBoPTD.setFieldValueMap(CtAcceBoPTDfldValmap);
+										ctAccBoPTD.setInterestId((long) 900006784);
+										ctAccBoPTD.setInterestName("PTD");
+										ctAccBoPTD.setInterestSi(new BigDecimal(sumInsured4));
+
+										System.out.println("ctAccBoPTD" + ctAccBoPTD);
+
+										if ((PolicyId != null && !PolicyId.equalsIgnoreCase(""))
+												&& (coverId != null && !coverId.equalsIgnoreCase(""))) {
+											policyCtId = Long.valueOf(coverId);
+											ctAccBoPTD.setPolicyCtId(policyCtId);
+										}
+										CtBoPersonalAccident.getPolicyCtAcceSOABOList().add(ctAccBoPTD);
+									}
+									System.out.println("end of PTD ");
+									// End PTD
+
+									// Start Funeral Expenses
+									if (interestId.equals("900006785")) {
+
+										PolicyCtAcceSOABO ctAccBoFuneralExpenses = new PolicyCtAcceSOABO();
+
+										Map<String, String> CtAcceBoFuneralExpensesfldValmap = new HashMap<String, String>();
+
+										CtAcceBoFuneralExpensesfldValmap.put("Balance_Sum_Insured_AD_GSA", balanceSumInsured);
+										
+										System.out.println(
+												"CtAcceBoFuneralExpensesfldValmap::" + CtAcceBoFuneralExpensesfldValmap);
+
+										ctAccBoFuneralExpenses.setFieldValueMap(CtAcceBoFuneralExpensesfldValmap);
+										ctAccBoFuneralExpenses.setInterestId((long) 900006785);
+										ctAccBoFuneralExpenses.setInterestName("Funeral Expenses");
+										ctAccBoFuneralExpenses.setInterestSi(new BigDecimal(sumInsured4));
+
+										System.out.println("ctAccBoFuneralExpenses" + ctAccBoFuneralExpenses);
+
+										if ((PolicyId != null && !PolicyId.equalsIgnoreCase(""))
+												&& (coverId != null && !coverId.equalsIgnoreCase(""))) {
+											policyCtId = Long.valueOf(coverId);
+											ctAccBoFuneralExpenses.setPolicyCtId(policyCtId);
+										}
+										CtBoPersonalAccident.getPolicyCtAcceSOABOList().add(ctAccBoFuneralExpenses);
+									}
+									System.out.println("end of Funeral Expenses ");
+									// End Funeral Expenses
+
+								}//Benfits Loop end
+							}
+							System.out.println("Before Add CtBoPersonalAccident insured");
+							insured.getPolicyCtSOABOList().add(CtBoPersonalAccident);
+							System.out.println("After Add CtBoPersonalAccident to insured");
+						} // Personal Accident cover end
+
+					} // End Cover Info
+				}
+				
+				
+				System.out.println("before insures======>" + insured.getPersonInsuredSOABO().getName());
+				policySoabo.getInsuredSOABOList().add(insured);
+				System.out.println("After insures======>" + insured.getPersonInsuredSOABO().getName());
+			
+				insured.setFieldValueMap(insuredFieldValuMap);
+			}
+			// End of Insured Details
+
+			System.out.println("Inside GSA cluases...");
+
+			/*PolicyClauseSOABO policyClauseSOABO = new PolicyClauseSOABO();
+			List<PolicyClauseSOABO> policyClauseSOABOList = new ArrayList<PolicyClauseSOABO>();
+			System.out.println("policyClauseSOABOList start>>>:" + policyClauseSOABOList);
+
+			//No clauses are available as for payload
+			
+			System.out.println("policyClauseSOABOList end >>>>" + policyClauseSOABOList);
+			policySoabo.setPolicyClauseSOABOList(policyClauseSOABOList);*/
+
+			if (PolicyId != null && !PolicyId.equalsIgnoreCase("")) {
+				infobo.setPolicyId(policyid);
+			}
+			
+			infobo.setBusinessNature("2");
+			infobo.setDurationMonth(12);
+			infobo.setSourceCode("INTERNET");
+			infobo.setSpName(gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getSpName());
+		//	infobo.setSpCode(gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getSpCode());
+			//infobo.setSpPfId(spPfId);
+			infobo.setSpPartyId(gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getSpPartyId());
+			infobo.setSpEmail(gsabo.getPayload().getCreatequoterequest().getQuoteDetails().getSpEmail());
+
+
+			// policySoabo.getInsuredSOABOList().add(insured);
+			policySoabo.setGenPolicyInfoSOABO(infobo);
+
+			System.out.println("policySoabo is:" + policySoabo.toString());
+
+			PolicyGenCustSOABO gencust = new PolicyGenCustSOABO();
+			
+			String ptyid = gsabo.getPayload().getCreatequoterequest().getProposerDetails().getPartyID();
+			
+			System.out.println("policySoabo is pty id :" + ptyid);
+			long partyId = Integer.valueOf(ptyid);
+			System.out.println("policySoabo is partyId id :" + partyId);
+			gencust.setPartyId(partyId);
+		//	long partyId = 99;
+			//gencust.setPartyId(partyId);
+			 if (PolicyId != null && !PolicyId.equalsIgnoreCase("")) {
+				//String ptyid = suhebo.getPayload().getCreatequoterequest().getProposerDetails().getPartyID();
+				//partyId = Integer.valueOf(ptyid);
+				//gencust.setPartyId(partyId);
+				gencust.setPolicyId(policyid);
+			 }
+		//	gencust.setPartyName("Kumar");
+			gencust.setInsuredFlag(1);
+		//	gencust.setIsStflag(0);
+		//	gencust.setMobile("9600370779");
+		//	BigDecimal kotorLevel = new BigDecimal("0");
+		//	gencust.setMotorLevel(kotorLevel);
+		//	gencust.setNonmotorLevel(kotorLevel);
+		//	gencust.setPartyRoleType(20);
+			gencust.setPayerFlag(1);
+		//	gencust.setStaffRelation(0);
+			System.out.println("policySoabo is gencust partyId id :" + gencust.getPartyId());
+			policySoabo.getPolicyGenCustSOABOList().add(gencust);
+			
+			
+			PolicyPayInfoSOABO painfo = new PolicyPayInfoSOABO();
+			painfo.setInstallmentorNot(0);
+			painfo.setPayMode(101);
+			if (PolicyId != null && !PolicyId.equalsIgnoreCase("")) {
+
+				painfo.setPolicyId(policyid);
+			}
+
+			PolicyPaymentSOABO paymodeSoabo = new PolicyPaymentSOABO();
+			paymodeSoabo.getPolicyPayInfoSOABOList().add(painfo);
+			policySoabo.setPolicyPaymentSOABO(paymodeSoabo);
+			QuoteInfoSOABO QuotSoBo = new QuoteInfoSOABO();
+			long QuoteVersion = 1;
+			if (PolicyId != null && !PolicyId.equalsIgnoreCase("")) {
+				QuotSoBo.setPolicyId(policyid);
+			}
+			QuotSoBo.getApprovalCode();
+			QuotSoBo.setQuoteVersion(QuoteVersion);
+			QuotSoBo.setAddress01(locationAddressDlt);
+
+			policySoabo.setQuoteInfoSOABO(QuotSoBo);
+			policySoabo.setReservedObject("");
+
+			PolicyNcdProtectionSOABO ncb = new PolicyNcdProtectionSOABO();
+			ncb.setBoughtFlag(false);
+			if (PolicyId != null && !PolicyId.equalsIgnoreCase("")) {
+
+				ppid1 = Integer.valueOf(ppid);
+				ncb.setPolicyId(policyid);
+				ncb.setPpId(ppid1);
+			}
+			policySoabo.setPolicyNcdProtectionSOABO(ncb);
+			policySoabo.setReservedObject("");
+			policySoabo.setContractStatusName("Not Effective");
+			policySoabo.setCreatorCode(userName);
+			System.out.println("CreatorCode ===>" + policySoabo.getCreatorCode());
+			policySoabo.setSourceofPolicyCode("New Business");
+			policySoabo.setLocalCurrency(Integer.valueOf(148));
+			policySoabo.setOperatorCode(userName);
+			System.out.println("OperatorCode===>" + policySoabo.getOperatorCode());
+			policySoabo.setPolicyCategoryCode("Single Policy");
+			policySoabo.setSumInsuredCurrencyCode("INR");
+			policySoabo.setProposalStatusCode("Quotation in Progress");
+			input.setContext(context);
+			input.setPolicySOABO(policySoabo);
+			Integer localCurrency = input.getPolicySOABO().getLocalCurrency();
+			System.out.println("PolicyService input __-->" + localCurrency);
+
+		} catch (Exception e) {
+			System.out.println("GSA Prdt Impl: exception thrown" + e.getStackTrace());
+		}
+		return input;
+	}
+
+	private String getBranchCode(Long agreementId) {
+		Log.debug(this.getClass(),"CR11507:: inside getBranchCode" );
+		DBean db = null;
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		
+		String branchCode=null;
+		try {
+
+			db = new DBean(false);
+			db.connect();
+			Connection con = db.getConnection();
+
+			String sql3 = "select BRANCH_CODE from generalsystem.v_ptm_branch where party_id in (select PARTY_ID from generalsystem.t_agt_agreement where agreement_id=?)";
+
+			Log.debug(this.getClass(), "CR11507:: inside getBranchCode:Select SQL::::::::" + sql3);
+
+			pstmt = con.prepareStatement(sql3);
+			 pstmt.setLong(1, agreementId);
+			rs = pstmt.executeQuery();
+
+			while (null != rs && rs.next()) {
+				branchCode=rs.getString("BRANCH_CODE");
+			}
+			System.out.println("branch code::::" + branchCode);
+
+		} catch (Exception e) {
+			Log.debug(this.getClass(), "CR11507:: inside getBranchCode:" + e);
+		} finally {
+			DBean.closeAll(rs, pstmt, db);
+		}
+
+		return branchCode;
+	}
+
+	public ParentOutputJsonBO responseMapping(PolicyServiceEbaoOutput ebaooutput, ParentOutputJsonBO outputjson)
+			throws Exception {
+
+		QuoteResponse qures = new QuoteResponse();
+		OutputResponse outres = new OutputResponse();
+		System.out.println("GSA Prdt Impl:" + "inside response creation");
+
+		Context context = new Context();
+		Client client = new Client();
+		User user = new User();
+		client.setAction("PremiumCalculationAP");
+		client.setChannel("PORTAL");
+		Long starttime = Long.valueOf(System.currentTimeMillis());
+		// String startTime = new Date(Starttime.longValue()).toString();
+		client.setTransactionTimestamp(starttime.toString());
+		user.setUsername(userName);
+		user.setUserRole("");
+		context.setClient(client);
+		context.setUser(user);
+		String partyid = null;
+		String Customercode = null;
+
+		OutputPayLoad paylosd = new OutputPayLoad();
+		CreateQuoteResponse quoteRes = new CreateQuoteResponse();
+
+		// OutputInsuredDetails insured = new OutputInsuredDetails();
+
+		OutputInsuredDetails insured = null;
+		OutputCoverDetails cover = null;
+		OutputBenefits benrfit = null;
+
+		System.out.println("GSA Prdt Impl: Quote Number " + ebaooutput.getPolicySOABO().getQuotationNumber());
+		System.out.println("GSA Prdt Impl: Policy ID :" + ebaooutput.getPolicySOABO().getPolicyId());
+
+		List<InsuredSOABO> insbo = ebaooutput.getPolicySOABO().getInsuredSOABOList();
+		List<OutputInsuredDetails> insuredList = new ArrayList<OutputInsuredDetails>();
+		List<PolicyFeeDetails> feelist = new ArrayList<PolicyFeeDetails>();
+
+		System.out.println("GSA Prdt Impl:insbo.size():: " + insbo.size());
+		int xx = 0;
+		for (InsuredSOABO ins : insbo) {
+			xx++;
+			System.out.println("GSA Prdt Impl: Line 3301::xx:" + xx);
+			insured = new OutputInsuredDetails();
+			insured.setInsuredName(ins.getInsuredName().toString());
+			System.out.println("In response insured.getInsuredName(): " + insured.getInsuredName());
+			insured.setInsuredId(ins.getInsuredId().toString());
+
+			List<PolicyCtSOABO> policyctbo = ins.getPolicyCtSOABOList();
+			int count = ins.getPolicyCtSOABOList().size();
+
+			System.out.println("GSA Prdt Impl: count value " + count);
+
+			List<OutputCoverDetails> Coverslist = new ArrayList<OutputCoverDetails>();
+			for (PolicyCtSOABO ctbo : policyctbo) {
+
+				cover = new OutputCoverDetails();
+				System.out.println("GSA Prdt Impl: cover details " + ctbo.getCoverTypeId());
+				cover.setCoverId(ctbo.getPolicyCtId().toString());
+				cover.setCoverTypeName(ctbo.getCoverTypeName());
+				cover.setCoverTypeId(ctbo.getCoverTypeId().toString());
+				cover.setCoverPremiumAmount(ctbo.getActualNetPremium().toString());
+				List<PolicyCtAcceSOABO> ctaccebo = ctbo.getPolicyCtAcceSOABOList();
+				int countbenifi = ctbo.getPolicyCtAcceSOABOList().size();
+
+				System.out.println("GSA Prdt Impl: count of benifits: " + countbenifi);
+				List<OutputBenefits> benrfit1 = new ArrayList<OutputBenefits>();
+				for (PolicyCtAcceSOABO accbo : ctaccebo) {
+					benrfit = new OutputBenefits();
+
+					for (int i = 0; i < countbenifi; i++) {
+						System.out.println("intrest details:" + accbo.getInterestName());
+
+						benrfit.setBenefitName(accbo.getInterestName());
+						benrfit.setBenefitTypeId(accbo.getInterestId().toString());
+						benrfit.setBenefitPremiumAmount(accbo.getInterestPremium().toString());
+						benrfit.setBenefitId(accbo.getPolicyCtId().toString());
+					}
+					System.out.println("benrfit id is: " + benrfit.getBenefitId());
+
+					benrfit1.add(benrfit);
+					System.out.println("GSA Prdt Impl: benitfi name itr");
+				}
+
+				OutputBenefits[] chtest = benrfit1.toArray(new OutputBenefits[benrfit1.size()]);
+				cover.setBenefits(chtest);
+				System.out.println("GSA Prdt Impl: test: " + cover.getBenefits().length);
+				/*
+				 * 
+				 * String xmlcovervalues = BeanHelper.toXML(cover);
+				 * 
+				 * System.out.println("xmlcovervalues" + xmlcovervalues);
+				 */
+
+				// cover.setBenefits(ben);
+
+				System.out.println("cover id is " + cover.getCoverId());
+				Coverslist.add(cover);
+				OutputCoverDetails[] covertest = Coverslist.toArray(new OutputCoverDetails[Coverslist.size()]);
+				insured.setCoverDetails(covertest);
+			}
+			System.out.println("Insured ID:" + insured.getInsuredId());
+
+			insuredList.add(insured);
+			System.out.println("Value of XX: " + xx);
+		}
+		System.out.println("insuredList.size()::" + insuredList.size());
+		OutputInsuredDetails[] insDetails = insuredList.toArray(new OutputInsuredDetails[insuredList.size()]);
+		System.out.println("insDetails.length:" + insDetails.length);
+		List<GenPolicyFeeSOABO> fee = ebaooutput.getPolicySOABO().getPolicyPaymentSOABO().getGenPolicyFeeSOABOList();
+		for (GenPolicyFeeSOABO fee1 : fee) {
+
+			int policyfee = fee1.getFeeType();
+			if (policyfee == 7012) {
+
+				PolicyFeeDetails feedetails = new PolicyFeeDetails();
+				feedetails.setFeeTypeId(fee1.getFeeType().toString());
+				feedetails.setFeeTypeName("SGST");
+				feedetails.setFeeTypeAmount(fee1.getAmount().toString());
+				feelist.add(feedetails);
+			}
+
+			if (policyfee == 7013) {
+
+				PolicyFeeDetails feedetails1 = new PolicyFeeDetails();
+				feedetails1.setFeeTypeId(fee1.getFeeType().toString());
+				feedetails1.setFeeTypeName("IGST");
+				feedetails1.setFeeTypeAmount(fee1.getAmount().toString());
+				feelist.add(feedetails1);
+
+			}
+			if (policyfee == 7014) {
+
+				PolicyFeeDetails feedetails2 = new PolicyFeeDetails();
+				feedetails2.setFeeTypeId(fee1.getFeeType().toString());
+				feedetails2.setFeeTypeName("CGST");
+				feedetails2.setFeeTypeAmount(fee1.getAmount().toString());
+				feelist.add(feedetails2);
+			}
+		}
+		PolicyFeeDetails[] feedtl = feelist.toArray(new PolicyFeeDetails[feelist.size()]);
+
+		List<PolicyGenCustSOABO> gencust = ebaooutput.getPolicySOABO().getPolicyGenCustSOABOList();
+		for (PolicyGenCustSOABO gencust1 : gencust) {
+
+			Customercode = gencust1.getCustomerCode();
+			partyid = gencust1.getPartyId().toString();
+		}
+		OutputPolicyTerms policyterm = new OutputPolicyTerms();
+
+		policyterm.setPolicyId(ebaooutput.getPolicySOABO().getPolicyId().toString());
+		System.out.println("GSA:Response:PolicyId: " + ebaooutput.getPolicySOABO().getPolicyId().toString());
+
+		policyterm.setEffectiveDate(ebaooutput.getPolicySOABO().getEffectDate().toString());
+		System.out.println("GSA:Response:EffectiveDate: " + ebaooutput.getPolicySOABO().getEffectDate().toString());
+		policyterm.setExpiryDate(ebaooutput.getPolicySOABO().getExpiryDate().toString());
+		System.out.println("GSA:Response:ExpiryDate: " + ebaooutput.getPolicySOABO().getExpiryDate().toString());
+		policyterm.setQuoteDate(ebaooutput.getPolicySOABO().getQuotationDate().toString());
+		System.out.println("GSA:Response:QuoteDate: " + ebaooutput.getPolicySOABO().getQuotationDate().toString());
+		policyterm.setPpId(ebaooutput.getPolicySOABO().getPolicyNcdProtectionSOABO().getPpId().toString());
+		System.out.println("GSA:Response:PpId: "
+				+ ebaooutput.getPolicySOABO().getPolicyNcdProtectionSOABO().getPpId().toString());
+		if (!partyid.equalsIgnoreCase("99")) {
+
+			policyterm.setCustomerCode(Customercode);
+			System.out.println("Customercode: " + Customercode);
+
+		}
+		quoteRes.setActualPremiumPayable(ebaooutput.getPolicySOABO().getActualPremiumPayable().toString());
+		quoteRes.setNetPremium(ebaooutput.getPolicySOABO().getActualNettPremium().toString());
+		quoteRes.setSumInsured(ebaooutput.getPolicySOABO().getSumInsured().toString());
+		quoteRes.setProduct("GSA");
+		quoteRes.setQuoteNumber(ebaooutput.getPolicySOABO().getQuotationNumber());
+		quoteRes.setLocationAddressDlt(ebaooutput.getPolicySOABO().getQuoteInfoSOABO().getAddress01());
+		// quoteRes.setInsuredDetails(insDetails);
+
+		quoteRes.setInsuredDetails(insDetails);
+		quoteRes.setFeeDetails(feedtl);
+		quoteRes.setPolicyTerms(policyterm);
+		paylosd.setCreateQuoteResponse(quoteRes);
+		outres.setResponseCode(ebaooutput.getPolicyFeedback().getResultCode().toString());
+		outres.setResponseMessage("Success");
+		outres.setPayload(paylosd);
+		// --------------------------------Underwriter---------------------------
+
+		System.out.println("GSA Prdt impl UnderwritingReason: "
+				+ ebaooutput.getPolicySOABO().getQuoteInfoSOABO().getUnderwritingReason());
+		System.out.println("GSA Prdt impl UnderwritingOtherFactor: "
+				+ ebaooutput.getPolicySOABO().getQuoteInfoSOABO().getUnderwritingOtherFactor());
+		System.out.println("GSA Prdt impl RenewalToUnderwriterFlag: "
+				+ ebaooutput.getPolicySOABO().getQuoteInfoSOABO().getRenewalToUnderwriterFlag());
+		if (ebaooutput.getPolicySOABO().getQuoteInfoSOABO().getUnderwritingOtherFactor() > 0) {
+			ValidationErrors validationErrors = new ValidationErrors();
+			ErrorTag errorTag = new ErrorTag();
+			validationErrors.setValidationCode("UW02");
+			validationErrors
+					.setValidationDescription(ebaooutput.getPolicySOABO().getQuoteInfoSOABO().getUnderwritingReason());
+			errorTag.setValidationErrors(validationErrors);
+			qures.setErrorTag(errorTag);
+			outres.setResponseMessage("Underwriter Validation");
+		} else {
+			outres.setResponseMessage("Success");
+		}
+		// ------------------------------------------------Underwriter
+		// ------------------------------------------
+
+		qures.setResponse(outres);
+		// qures.setContext(context);
+		// qures.setContext(context);
+		qures.setRequestId("GSARequest");
+		outputjson.setQuoteResponse(qures);
+		String xmloutput = BeanHelper.toXML(outputjson);
+
+		return outputjson;
+	}
+
+}
