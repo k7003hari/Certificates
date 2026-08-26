@@ -28,6 +28,14 @@
       com.ebao.foundation.module.web.filter.XssFilter
     </filter-class>
   </filter>
+-->
+<!--
+  <filter>
+    <filter-name>Xssfilter</filter-name>
+    <filter-class>
+      com.ebao.foundation.module.web.filter.XssFilter
+    </filter-class>
+  </filter>
 -->  
   <!--<filter>
     <filter-name>Xssfilter</filter-name>
