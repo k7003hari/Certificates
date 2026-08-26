@@ -1,396 +1,51 @@
-This XML file does not appear to have any style information associated with it. The document tree is shown below.
-
-
-<web-app xmlns="http://java.sun.com/xml/ns/j2ee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="WebApp_ID" xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee http://java.sun.com/xml/ns/j2ee/web-app_2_4.xsd" version="2.4">
-
-<filter>
-
-<filter-name>SBIAuthenticationFilter</filter-name>
-
-<filter-class> com.ebao.sbi.integration.SBIAuthenticationFilter </filter-class>
-
-<init-param>
-
-<param-name>ignoreURIs</param-name>
-
-<param-value>/casfailed.do,/login.do,/loginPage.do,/j_acegi_cas_security_check.do,/services,/services/.*</param-value>
-
-</init-param>
-
-</filter>
-
-<filter>
-
-<filter-name>ResourceCleanFilter</filter-name>
-
-<filter-class> com.ebao.foundation.module.web.filter.ThreadBindResourceCleanFilter </filter-class>
-
-</filter>
-
-<!--   <filter>     <filter-name>Xssfilter</filter-name>     <filter-class>       com.ebao.foundation.module.web.filter.XssFilter     </filter-class>   </filter> -->
-
-<!-- <filter>     <filter-name>Xssfilter</filter-name>     <filter-class>       com.ebao.sbi.gs.filter.SbiXssFilter     </filter-class>   </filter> -->
-
-<!--   <filter>     <filter-name>S2SAuth</filter-name>     <filter-class>       com.ebao.foundation.module.security.filters.S2SAuthenticationFilter     </filter-class>   </filter>   <filter>     <filter-name>AuthenticationFilterProxy</filter-name>     <filter-class>       com.ebao.foundation.module.security.filters.AuthenticationFilterProxy     </filter-class>     <init-param>             <param-name>ignoreURIs</param-name>             <param-value>/casfailed.do,/login.do,/loginPage.do,/j_acegi_cas_security_check.do,/services,/services/.*</param-value>          </init-param>   </filter> -->
-
-<filter>
-
-<filter-name>ProtocalTransferFilter</filter-name>
-
-<filter-class> com.ebao.foundation.module.web.filter.ProtocalTransferFilter </filter-class>
-
-</filter>
-
-<!--  The Permission Filter  -->
-
-<filter>
-
-<filter-name>PermissionFilter</filter-name>
-
-<filter-class> com.ebao.foundation.module.security.filters.PermissionFilter </filter-class>
-
-</filter>
-
-<filter>
-
-<filter-name>JbpmContextFilter</filter-name>
-
-<filter-class> com.ebao.pub.workflow.jbpm.web.filter.JbpmContextFilter </filter-class>
-
-</filter>
-
-<!--   <filter>     <filter-name>RequestTokenCheckingFilter</filter-name>     <filter-class>       com.ebao.foundation.module.web.filter.RequestTokenCheckingFilter     </filter-class>   </filter> -->
-
-<!--  performance tuning begin... -->
-
-<filter>
-
-<filter-name>DynamicDataInit</filter-name>
-
-<filter-class> com.ebao.gs.pol.core.pub.dynamic.fwk.impl.DynamicDataInit </filter-class>
-
-<init-param>
-
-<param-name>ignoreURIs</param-name>
-
-<param-value/>
-
-</init-param>
-
-</filter>
-
-<filter-mapping>
-
-<filter-name>DynamicDataInit</filter-name>
-
-<url-pattern>/*</url-pattern>
-
-</filter-mapping>
-
-<!--  performance tuning end... -->
-
-<filter>
-
-<filter-name>ProfileFilter</filter-name>
-
-<filter-class> com.ebao.foundation.module.web.filter.ProfileFilter </filter-class>
-
-</filter>
-
-<filter>
-
-<filter-name>SetCharacterEncodingFilter</filter-name>
-
-<filter-class> com.ebao.foundation.module.web.filter.SetCharacterEncodingFilter </filter-class>
-
-</filter>
-
-<filter>
-
-<filter-name>RootFilter</filter-name>
-
-<filter-class>com.ebao.framework.RootFilter</filter-class>
-
-</filter>
-
-<filter-mapping>
-
-<filter-name>SetCharacterEncodingFilter</filter-name>
-
-<url-pattern>/*</url-pattern>
-
-</filter-mapping>
-
-<filter-mapping>
-
-<filter-name>ResourceCleanFilter</filter-name>
-
-<url-pattern>/*</url-pattern>
-
-<dispatcher>REQUEST</dispatcher>
-
-</filter-mapping>
-
-<!--     <filter-mapping>     <filter-name>ProtocalTransferFilter</filter-name>     <url-pattern>/*</url-pattern>   </filter-mapping>    -->
-
-<filter-mapping>
-
-<filter-name>SBIAuthenticationFilter</filter-name>
-
-<url-pattern>/*</url-pattern>
-
-</filter-mapping>
-
-<!--   <filter-mapping>     <filter-name>S2SAuth</filter-name>     <url-pattern>/*</url-pattern>     <dispatcher>REQUEST</dispatcher>   </filter-mapping>   <filter-mapping>     <filter-name>AuthenticationFilterProxy</filter-name>     <url-pattern>/*</url-pattern>   </filter-mapping>    -->
-
-<!--   <filter-mapping>     <filter-name>RequestTokenCheckingFilter</filter-name>     <url-pattern>/*</url-pattern>   </filter-mapping>    -->
-
-<!--     <filter-mapping>     <filter-name>PermissionFilter</filter-name>     <url-pattern>/*</url-pattern>     </filter-mapping>    -->
-
-<!--   <filter-mapping>     <filter-name>Xssfilter</filter-name>     <url-pattern>/*</url-pattern>   </filter-mapping> -->
-
-<filter-mapping>
-
-<filter-name>JbpmContextFilter</filter-name>
-
-<url-pattern>/*</url-pattern>
-
-</filter-mapping>
-
-<!--          <filter-mapping>     <filter-name>ProfileFilter</filter-name>     <url-pattern>*.do,*.jsp</url-pattern>     </filter-mapping>    -->
-
-<filter-mapping>
-
-<filter-name>RootFilter</filter-name>
-
-<url-pattern>/*</url-pattern>
-
-</filter-mapping>
-
-<filter-mapping>
-
-<filter-name>AcegiFilterChainProxy</filter-name>
-
-<url-pattern>*.do</url-pattern>
-
-</filter-mapping>
-
-<!--  all are the proxy listeners  -->
-
-<listener>
-
-<listener-class>com.ebao.foundation.module.configframework.support.jsp.ServletContextListenerProxy</listener-class>
-
-</listener>
-
-<listener>
-
-<listener-class>com.ebao.foundation.module.configframework.support.jsp.HttpSessionListenerProxy</listener-class>
-
-</listener>
-
-<listener>
-
-<listener-class>com.ebao.foundation.module.configframework.support.jsp.HttpSessionAttributeListenerProxy</listener-class>
-
-</listener>
-
-<listener>
-
-<listener-class>com.ebao.foundation.module.configframework.support.jsp.ServletContextAttributeListenerProxy</listener-class>
-
-</listener>
-
-<servlet>
-
-<servlet-name>action</servlet-name>
-
-<servlet-class>com.ebao.foundation.module.web.struts.StrutsProxyServlet</servlet-class>
-
-<init-param>
-
-<param-name>debug</param-name>
-
-<param-value>2</param-value>
-
-</init-param>
-
-<init-param>
-
-<param-name>detail</param-name>
-
-<param-value>0</param-value>
-
-</init-param>
-
-<init-param>
-
-<param-name>validate</param-name>
-
-<param-value>true</param-value>
-
-</init-param>
-
-<load-on-startup>2</load-on-startup>
-
-</servlet>
-
-<servlet>
-
-<servlet-name>ConfigControllerService</servlet-name>
-
-<servlet-class>com.ebao.pub.soa.esb.servlet.CXFConfigControllerService</servlet-class>
-
-<load-on-startup>100</load-on-startup>
-
-</servlet>
-
-<servlet>
-
-<display-name>RootServlet</display-name>
-
-<servlet-name>rootservlet</servlet-name>
-
-<servlet-class>com.ebao.framework.RootServlet</servlet-class>
-
-<load-on-startup>3</load-on-startup>
-
-</servlet>
-
-<servlet>
-
-<servlet-name>dwr-invoker</servlet-name>
-
-<servlet-class>uk.ltd.getahead.dwr.DWRServlet</servlet-class>
-
-<init-param>
-
-<param-name>debug</param-name>
-
-<param-value>true</param-value>
-
-</init-param>
-
-<init-param>
-
-<param-name>logLevel</param-name>
-
-<param-value>DEBUG</param-value>
-
-</init-param>
-
-</servlet>
-
-<servlet-mapping>
-
-<servlet-name>dwr-invoker</servlet-name>
-
-<url-pattern>/dwr/*</url-pattern>
-
-</servlet-mapping>
-
-<servlet>
-
-<servlet-name>initSystem</servlet-name>
-
-<servlet-class>com.ebao.pub.rms.init.RmsInitServlet</servlet-class>
-
-<init-param>
-
-<param-name>init_classes</param-name>
-
-<param-value>com.ebao.pub.rms.init.RmsInitImpl</param-value>
-
-</init-param>
-
-<load-on-startup>4</load-on-startup>
-
-</servlet>
-
-<servlet>
-
-<display-name>AjaxActionsServlet</display-name>
-
-<servlet-name>ajaxActionsServlet</servlet-name>
-
-<servlet-class>com.ebao.common.party.util.AjaxActionsServlet</servlet-class>
-
-<load-on-startup>3</load-on-startup>
-
-</servlet>
-
-<servlet-mapping>
-
-<servlet-name>ajaxActionsServlet</servlet-name>
-
-<url-pattern>/ajaxActions</url-pattern>
-
-</servlet-mapping>
-
-<servlet-mapping>
-
-<servlet-name>rootservlet</servlet-name>
-
-<url-pattern>/gs/servlet/*</url-pattern>
-
-</servlet-mapping>
-
-<servlet-mapping>
-
-<servlet-name>action</servlet-name>
-
-<url-pattern>*.do</url-pattern>
-
-</servlet-mapping>
-
-<servlet-mapping>
-
-<servlet-name>ConfigControllerService</servlet-name>
-
-<url-pattern>/services/*</url-pattern>
-
-</servlet-mapping>
-
-<servlet-mapping>
-
-<servlet-name>rootservlet</servlet-name>
-
-<url-pattern>/gs/servlet/*</url-pattern>
-
-</servlet-mapping>
-
-<session-config>
-
-<!--  Default to 5 minute session timeouts  -->
-
-<session-timeout>-1</session-timeout>
-
-</session-config>
-
-<mime-mapping>
-
-<extension>wsdl</extension>
-
-<mime-type>text/xml</mime-type>
-
-</mime-mapping>
-
-<mime-mapping>
-
-<extension>xsd</extension>
-
-<mime-type>text/xml</mime-type>
-
-</mime-mapping>
-
-<!--  The Usual Welcome File List  -->
-
-<welcome-file-list>
-
-<welcome-file>index.jsp</welcome-file>
-
-<welcome-file>index.html</welcome-file>
-
-</welcome-file-list>
-
-</web-app>
+<?xml version='1.0' encoding='UTF-8'?>
+<deployment-plan xmlns="http://xmlns.oracle.com/weblogic/deployment-plan" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://xmlns.oracle.com/weblogic/deployment-plan http://xmlns.oracle.com/weblogic/deployment-plan/1.0/deployment-plan.xsd">
+  <application-name>applications</application-name>
+  <variable-definition>
+    <variable>
+      <name>SessionDescriptor_invalidationIntervalSecs_17876524108610</name>
+      <value>3600</value>
+    </variable>
+    <variable>
+      <name>SessionDescriptor_cookieMaxAgeSecs_17876524108621</name>
+      <value>3600</value>
+    </variable>
+  </variable-definition>
+  <module-override>
+    <module-name>insurance</module-name>
+    <module-type>ear</module-type>
+    <module-descriptor external="false">
+      <root-element>weblogic-application</root-element>
+      <uri>META-INF/weblogic-application.xml</uri>
+    </module-descriptor>
+    <module-descriptor external="false">
+      <root-element>application</root-element>
+      <uri>META-INF/application.xml</uri>
+    </module-descriptor>
+    <module-descriptor external="true">
+      <root-element>wldf-resource</root-element>
+      <uri>META-INF/weblogic-diagnostics.xml</uri>
+    </module-descriptor>
+  </module-override>
+  <module-override>
+    <module-name>web</module-name>
+    <module-type>war</module-type>
+    <module-descriptor external="false">
+      <root-element>weblogic-web-app</root-element>
+      <uri>WEB-INF/weblogic.xml</uri>
+      <variable-assignment>
+        <name>SessionDescriptor_invalidationIntervalSecs_17876524108610</name>
+        <xpath>/weblogic-web-app/session-descriptor/invalidation-interval-secs</xpath>
+      </variable-assignment>
+      <variable-assignment>
+        <name>SessionDescriptor_cookieMaxAgeSecs_17876524108621</name>
+        <xpath>/weblogic-web-app/session-descriptor/cookie-max-age-secs</xpath>
+      </variable-assignment>
+    </module-descriptor>
+    <module-descriptor external="false">
+      <root-element>web-app</root-element>
+      <uri>WEB-INF/web.xml</uri>
+    </module-descriptor>
+  </module-override>
+  <config-root>/ebao/application/EBAO_GS_ROOT/EBAO_HOME/applications/plan</config-root>
+</deployment-plan>
